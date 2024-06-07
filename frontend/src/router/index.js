@@ -1,8 +1,13 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
 import AppView from '@/views/AppView.vue'
-import DataBaseView from '@/views/DataBaseView.vue'
+import DataBaseFolderView from '@/views/DataBaseFolderView.vue'
 import AccountView from '@/views/AccountView.vue'
+import IDDataBaseRouterView from '@/views/IDDataBaseRouterView.vue'
+import IDDataBaseDocumentView from '@/views/IDDataBaseDocumentView.vue'
+import IDDataBaseHitTestingView from '@/views/IDDataBaseHitTestingView.vue'
+import IDDataBaseSettingView from '@/views/IDDataBaseSettingView.vue'
+import IDDataBaseDocumentDetailView from '@/views/IDDataBaseDocumentDetailView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -11,9 +16,46 @@ const router = createRouter({
       path: '/',
       redirect: '/app'
     },
-    { path: '/app', component: AppView },
-    { path: '/database', component: DataBaseView },
-    { path: '/account', component: AccountView }
+    { path: '/app', name: 'app', component: AppView },
+    {
+      path: '/database',
+      name: 'database',
+      component: DataBaseFolderView
+    },
+    {
+      path: '/database/:databaseID',
+      name: 'id-database',
+      component: IDDataBaseRouterView,
+      redirect: (to) => {
+        return {
+          name: 'id-database-document',
+          params: { databaseID: to.params.databaseID }
+        }
+      },
+      children: [
+        {
+          path: 'document',
+          name: 'id-database-document',
+          component: IDDataBaseDocumentView
+        },
+        {
+          path: 'hitTesting',
+          name: 'id-database-hit-testing',
+          component: IDDataBaseHitTestingView
+        },
+        {
+          path: 'setting',
+          name: 'id-database-setting',
+          component: IDDataBaseSettingView
+        },
+        {
+          path: 'document/:documentID',
+          name: 'id-database-document-detail',
+          component: IDDataBaseDocumentDetailView
+        }
+      ]
+    },
+    { path: '/account', name: 'account', component: AccountView }
   ]
 })
 

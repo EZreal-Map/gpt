@@ -37,15 +37,19 @@ const navigateToAccount = () => {
 }
 
 const menuItems = [
-  { text: '应用', route: '/app', icon: Promotion },
-  { text: '知识库', route: '/database', icon: Coin },
-  { text: '账号', route: '/account', icon: UserFilled }
+  { text: '应用', route: { name: 'app' }, icon: Promotion },
+  { text: '知识库', route: { name: 'database' }, icon: Coin },
+  { text: '账号', route: { name: 'account' }, icon: UserFilled }
 ]
 
-const isSelected = (itemRoute) =>
-  computed(() => currentRoute.value === itemRoute).value
-const getIconColor = (route) =>
-  computed(() => (currentRoute.value === route ? '#007bff' : '#808080')).value
+const isSelected = (itemRoute) => {
+  const itemRouteUrl = router.resolve(itemRoute).href
+  // 检查当前路由是否以指定路径开头
+  return computed(() => route.path.startsWith(itemRouteUrl)).value
+}
+const getIconColor = (itemRoute) => {
+  return computed(() => (isSelected(itemRoute) ? '#007bff' : '#808080')).value
+}
 
 // 监听路由变化
 watch(
@@ -59,6 +63,6 @@ watch(
 <style scoped>
 .aside-top-avater {
   cursor: pointer;
-  margin: 10px 0px 40px;
+  margin-bottom: 40px;
 }
 </style>
