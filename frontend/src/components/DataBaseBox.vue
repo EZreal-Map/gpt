@@ -2,25 +2,45 @@
   <div class="box" @click="routeToIDDataBaseView(databaseID)">
     <div class="title-container">
       <div class="title-left-name">
-        <el-icon size="30"><DocumentCopy /></el-icon>
+        <el-icon size="30" color="#0056b3"><DocumentCopy /></el-icon>
         <span
-          @dblclick="enableEditingTitle"
+          @dblclick="enableEditingName"
           @click.stop=""
-          v-if="!isEditingTitle"
-          >{{ title }}</span
+          v-if="!isEditingName"
+          >{{ name }}</span
         >
         <input
           v-else
-          v-model="editableTitle"
-          @blur="saveTitle"
-          @keyup.enter="saveTitle"
+          v-model="editableName"
+          @blur="saveName"
+          @keyup.enter="saveName"
           @click.stop=""
-          class="title-input"
-          ref="titleInput"
+          class="name-input"
+          ref="nameInput"
         />
       </div>
-      <div class="title-right-more">
-        <el-icon size="20"><MoreFilled /></el-icon>
+      <div class="title-right-more" @click.stop="">
+        <el-dropdown>
+          <span class="el-dropdown-link">
+            <el-icon size="20"><MoreFilled /></el-icon>
+          </span>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item @click="handleClickRename"
+                >重命名</el-dropdown-item
+              >
+              <el-dropdown-item @click="handleClickModifyDescription"
+                >修改描述</el-dropdown-item
+              >
+              <el-dropdown-item @click="handleClickModifyPrivacy"
+                >修改隐私</el-dropdown-item
+              >
+              <el-dropdown-item divided @click="handleClickDelete(databaseID)"
+                >删除</el-dropdown-item
+              >
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
       </div>
     </div>
     <div class="middle-container" @dblclick="enableEditingDescription">
@@ -51,42 +71,65 @@ import { useRouter } from 'vue-router'
 // defineProps 接收父组件传递的数据
 const props = defineProps({
   databaseID: String,
-  title: String,
+  name: String,
   description: String,
-  privacy: String
+  privacy: String,
+  fetchDataSet: Function
 })
 
 // defineEmits 定义组件的事件
 const emits = defineEmits([
-  'update:title',
+  'update:name',
   'update:description',
   'update:privacy'
 ])
 
-// title 修改相关
-const isEditingTitle = ref(false)
-const editableTitle = ref(props.title)
-const titleInput = ref(null)
-
-const enableEditingTitle = () => {
-  isEditingTitle.value = true
-  nextTick(() => {
-    titleInput.value.focus()
-  })
-}
-
-const saveTitle = () => {
-  isEditingTitle.value = false
-  // 更新父组件或服务器上的数据
-  console.log('保存描述', editableTitle.value)
-  emits('update:title', editableTitle.value)
-}
-
-// description 修改相关
+// name 修改相关变量
+const isEditingName = ref(false)
+const editableName = ref(props.name)
+const nameInput = ref(null)
+// description 修改相关变量
 const isEditingDesctiption = ref(false)
 const editableDescription = ref(props.description)
 const descriptionInput = ref(null)
+// privacy 修改相关变量
+const editablePrivacy = ref(props.privacy)
 
+// 更新数据集操作
+const updateDataSet = async () => {
+  const data = {
+    name: editableName.value,
+    description: editableDescription.value, // 可以根据需要添加描述
+    privacy: editablePrivacy.value // 可以根据需要添加隐私
+  }
+  const response = await axios.put(
+    `http://127.0.0.1:7979/dataset/${props.databaseID}`,
+    data
+  )
+  console.log('保存描述', response)
+}
+
+// name 修改相关操作
+const enableEditingName = () => {
+  isEditingName.value = true
+  nextTick(() => {
+    nameInput.value.focus()
+  })
+}
+
+const saveName = async () => {
+  isEditingName.value = false
+  if (editableName.value) {
+    // 更新父组件或服务器上的数据
+    emits('update:name', editableName.value)
+    console.log('保存名字', editableName.value)
+    updateDataSet()
+  } else {
+    editableName.value = props.name
+  }
+}
+
+// description 修改相关操作
 const enableEditingDescription = () => {
   isEditingDesctiption.value = true
   nextTick(() => {
@@ -97,14 +140,17 @@ const enableEditingDescription = () => {
 const saveDescription = () => {
   isEditingDesctiption.value = false
   // 更新父组件或服务器上的数据
-  console.log('保存描述', editableDescription.value)
   emits('update:description', editableDescription.value)
+  updateDataSet()
 }
 
+// privacy 修改相关操作
 const changePrive = (event) => {
   event.stopPropagation() // 阻止事件冒泡
-  console.log('修改隐私')
-  emits('update:privacy', props.privacy === '私有' ? '公开' : '私有')
+  editablePrivacy.value = props.privacy === '私有' ? '公开' : '私有'
+  console.log('修改隐私', editablePrivacy.value)
+  emits('update:privacy', editablePrivacy.value)
+  updateDataSet()
 }
 
 // 路由跳转相关 跳转到文档详情页
@@ -113,6 +159,32 @@ const routeToIDDataBaseView = (databaseID) => {
   console.log('跳转到文档', databaseID)
   // router.push(`/database/${databaseID}`)
   router.push({ name: 'id-database', params: { databaseID } })
+}
+
+// 下拉菜单相关
+import axios from 'axios'
+// 重命名
+const handleClickRename = () => {
+  isEditingName.value = true
+}
+// 修改描述
+const handleClickModifyDescription = () => {
+  isEditingDesctiption.value = true
+}
+
+// 修改隐私
+const handleClickModifyPrivacy = () => {
+  editablePrivacy.value = props.privacy === '私有' ? '公开' : '私有'
+  emits('update:privacy', editablePrivacy.value)
+  updateDataSet()
+}
+// 删除
+const handleClickDelete = async (databaseID) => {
+  const response = await axios.delete(
+    `http://127.0.0.1:7979/dataset/${databaseID}`
+  )
+  console.log('删除', response)
+  props.fetchDataSet()
 }
 </script>
 <style scoped>
@@ -182,7 +254,7 @@ const routeToIDDataBaseView = (databaseID) => {
   margin-right: 2px;
 }
 
-.title-input,
+.name-input,
 .description-input {
   border: 1px solid #c0c4cc; /* 更浅的边框颜色 */
   border-radius: 4px;
@@ -191,9 +263,20 @@ const routeToIDDataBaseView = (databaseID) => {
   outline: none; /* 去除输入框默认的轮廓线 */
 }
 
-.title-input:focus,
+.name-input:focus,
 .description-input:focus {
   border-color: #007bff; /* 输入框获得焦点时的边框颜色 */
   box-shadow: 0 0 3px rgba(0, 123, 255, 0.5); /* 输入框获得焦点时的浅色阴影 */
+}
+
+.el-dropdown-link {
+  cursor: pointer;
+  color: var(--el-color-primary);
+  display: flex;
+  align-items: center;
+}
+
+.el-dropdown-link:focus-visible {
+  outline: unset;
 }
 </style>

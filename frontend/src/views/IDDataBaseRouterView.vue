@@ -23,9 +23,12 @@
         </template>
       </IconTextButton>
     </div>
-    <button class="new-button">
+    <button
+      class="update-document-button"
+      @click="goToUpdateDocumentView(databaseID)"
+    >
       <el-icon><Plus /></el-icon>
-      <span>新建</span>
+      <span>上传文档</span>
     </button>
   </div>
 
@@ -50,6 +53,13 @@ const router = useRouter()
 const backToIDDataBaseDocumentView = (databaseID) => {
   router.push({
     name: 'id-database-document',
+    params: { databaseID: databaseID }
+  }) // 使用路由名称
+}
+
+const goToUpdateDocumentView = (databaseID) => {
+  router.push({
+    name: 'id-database-document-update',
     params: { databaseID: databaseID }
   }) // 使用路由名称
 }
@@ -118,7 +128,7 @@ watch(
   align-items: center; /* 垂直居中 */
 }
 /* 按钮样式 */
-.new-button {
+.update-document-button {
   padding: 10px 20px;
   font-size: 14px;
   background-color: #ffffff;
@@ -132,7 +142,7 @@ watch(
   transition: background-color 0.3s ease; /* 添加过渡效果 */
 }
 
-.new-button:hover {
+.update-document-button:hover {
   background-color: #e6ecfc;
   border-color: #0056b3; /* 修改边框颜色 */
 }
@@ -145,7 +155,7 @@ watch(
 }
 
 /* 图标样式  '+' 与 '新增' 的间隔*/
-.new-button .el-icon {
+.update-document-button .el-icon {
   margin-right: 4px;
 }
 

@@ -6,6 +6,7 @@
           <th class="column-number">#</th>
           <th class="column-filename">文件名</th>
           <th class="column-charcount">字符数</th>
+          <th class="column-recallcount">分段数</th>
           <th class="column-recallcount">召回次数</th>
           <th class="column-uploadtime">上传时间</th>
           <th class="column-status">状态</th>
@@ -13,29 +14,33 @@
         </tr>
       </thead>
       <tbody>
-        <tr v-for="(item, index) in tableData" :key="index">
+        <tr v-for="(document, index) in documentData" :key="document.id">
           <td>{{ index + 1 }}</td>
-          <td @click="editFile(item.documentID)" class="tdEditPointer">
-            {{ item.fileName }}
+          <td @click="editFile(document.id)" class="tdEditPointer">
+            {{ document.name }}
           </td>
-          <td @click="editFile(item.documentID)" class="tdEditPointer">
-            {{ item.charCount }}
+          <td @click="editFile(document.id)" class="tdEditPointer">
+            {{ document.character_count }}
           </td>
-          <td @click="editFile(item.documentID)" class="tdEditPointer">
-            {{ item.recallCount }}
+          <td @click="editFile(document.id)" class="tdEditPointer">
+            {{ document.chunk_sum_num }}
           </td>
-          <td @click="editFile(item.documentID)" class="tdEditPointer">
-            {{ item.uploadTime }}
+          <td @click="editFile(document.id)" class="tdEditPointer">
+            {{ document.recall_count }}
           </td>
-          <td>{{ item.status }}</td>
+          <td @click="editFile(document.id)" class="tdEditPointer">
+            {{ document.created_at }}
+          </td>
+
+          <td>document.status</td>
           <td>
-            <button @click="downloadFile(index)" class="download-button">
+            <button @click="downloadFile(document.id)" class="download-button">
               下载
             </button>
-            <button @click="editFile(item.documentID)" class="edit-button">
+            <button @click="editFile(document.id)" class="edit-button">
               编辑
             </button>
-            <button @click="deleteFile(index)" class="delete-button">
+            <button @click="deleteFile(document.id)" class="delete-button">
               删除
             </button>
           </td>
@@ -47,211 +52,28 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
+
+// 从路由对象中提取 databaseID 参数
+const route = useRoute()
+const databaseID = route.params.databaseID
 
 // 模拟表格数据
-const tableData = ref([
-  {
-    documentID: 'fawefwefwar1',
-    fileName: '125国内水路运输管理条例(2023修订).csv',
-    charCount: '8.2k',
-    recallCount: 0,
-    uploadTime: '2024-05-13 06:48',
-    status: '排队中'
-  },
-  {
-    documentID: 'fawefwefwar2',
-    fileName: '186中华人民共和国外国籍船舶航行长江水域管理规定.csv',
-    charCount: '2.6k',
-    recallCount: 0,
-    uploadTime: '2024-05-13 06:48',
-    status: '排队中'
-  },
-  {
-    documentID: 'fawefwefwar3',
-    fileName: '186中华人民共和国外国籍船舶航行长江水域管理规定.csv',
-    charCount: '2.6k',
-    recallCount: 0,
-    uploadTime: '2024-05-13 06:48',
-    status: '排队中'
-  },
-  {
-    documentID: 'fawefwefwar4',
-    fileName: '186中华人民共和国外国籍船舶航行长江水域管理规定.csv',
-    charCount: '2.6k',
-    recallCount: 0,
-    uploadTime: '2024-05-13 06:48',
-    status: '排队中'
-  },
-  {
-    documentID: 'fawefwefwar5',
-    fileName: '186中华人民共和国外国籍船舶航行长江水域管理规定.csv',
-    charCount: '2.6k',
-    recallCount: 0,
-    uploadTime: '2024-05-13 06:48',
-    status: '排队中'
-  },
-  {
-    documentID: 'fawefwefwar6',
-    fileName: '186中华人民共和国外国籍船舶航行长江水域管理规定.csv',
-    charCount: '2.6k',
-    recallCount: 0,
-    uploadTime: '2024-05-13 06:48',
-    status: '排队中'
-  },
-  {
-    documentID: 'fawefwefwar7',
-    fileName: '125国内水路运输管理条例(2023修订).csv',
-    charCount: '8.2k',
-    recallCount: 0,
-    uploadTime: '2024-05-13 06:48',
-    status: '排队中'
-  },
-  {
-    documentID: 'fawefwefwar8',
-    fileName: '125国内水路运输管理条例(2023修订).csv',
-    charCount: '8.2k',
-    recallCount: 0,
-    uploadTime: '2024-05-13 06:48',
-    status: '排队中'
-  },
-  {
-    documentID: 'fawefwefwar9',
-    fileName: '125国内水路运输管理条例(2023修订).csv',
-    charCount: '8.2k',
-    recallCount: 0,
-    uploadTime: '2024-05-13 06:48',
-    status: '排队中'
-  },
-  {
-    documentID: 'fawefwefwar10',
-    fileName: '125国内水路运输管理条例(2023修订).csv',
-    charCount: '8.2k',
-    recallCount: 0,
-    uploadTime: '2024-05-13 06:48',
-    status: '排队中'
-  },
-  {
-    documentID: 'fawefwefwar11',
-    fileName: '125国内水路运输管理条例(2023修订).csv',
-    charCount: '8.2k',
-    recallCount: 0,
-    uploadTime: '2024-05-13 06:48',
-    status: '排队中'
-  },
-  {
-    documentID: 'fawefwefwar12',
-    fileName: '125国内水路运输管理条例(2023修订).csv',
-    charCount: '8.2k',
-    recallCount: 0,
-    uploadTime: '2024-05-13 06:48',
-    status: '排队中'
-  },
-  {
-    documentID: 'fawefwefwar13',
-    fileName: '125国内水路运输管理条例(2023修订).csv',
-    charCount: '8.2k',
-    recallCount: 0,
-    uploadTime: '2024-05-13 06:48',
-    status: '排队中'
-  },
-  {
-    documentID: 'fawefwefwar14',
-    fileName: '125国内水路运输管理条例(2023修订).csv',
-    charCount: '8.2k',
-    recallCount: 0,
-    uploadTime: '2024-05-13 06:48',
-    status: '排队中'
-  },
-  {
-    documentID: 'fawefwefwar15',
-    fileName: '125国内水路运输管理条例(2023修订).csv',
-    charCount: '8.2k',
-    recallCount: 0,
-    uploadTime: '2024-05-13 06:48',
-    status: '排队中'
-  },
-  {
-    documentID: 'fawefwefwar16',
-    fileName: '125国内水路运输管理条例(2023修订).csv',
-    charCount: '8.2k',
-    recallCount: 0,
-    uploadTime: '2024-05-13 06:48',
-    status: '排队中'
-  },
-  {
-    documentID: 'fawefwefwar17',
-    fileName: '125国内水路运输管理条例(2023修订).csv',
-    charCount: '8.2k',
-    recallCount: 0,
-    uploadTime: '2024-05-13 06:48',
-    status: '排队中'
-  },
-  {
-    documentID: 'fawefwefwar18',
-    fileName: '125国内水路运输管理条例(2023修订).csv',
-    charCount: '8.2k',
-    recallCount: 0,
-    uploadTime: '2024-05-13 06:48',
-    status: '排队中'
-  },
-  {
-    documentID: 'fawefwefwar19',
-    fileName: '125国内水路运输管理条例(2023修订).csv',
-    charCount: '8.2k',
-    recallCount: 0,
-    uploadTime: '2024-05-13 06:48',
-    status: '排队中'
-  },
-  {
-    documentID: 'fawefwefwar20',
-    fileName: '125国内水路运输管理条例(2023修订).csv',
-    charCount: '8.2k',
-    recallCount: 0,
-    uploadTime: '2024-05-13 06:48',
-    status: '排队中'
-  },
-  {
-    documentID: 'fawefwefwar21',
-    fileName: '125国内水路运输管理条例(2023修订).csv',
-    charCount: '8.2k',
-    recallCount: 0,
-    uploadTime: '2024-05-13 06:48',
-    status: '排队中'
-  },
-  {
-    documentID: 'fawefwefwar22',
-    fileName: '125国内水路运输管理条例(2023修订).csv',
-    charCount: '8.2k',
-    recallCount: 0,
-    uploadTime: '2024-05-13 06:48',
-    status: '排队中'
-  },
-  {
-    documentID: 'fawefwefwar23',
-    fileName: '125国内水路运输管理条例(2023修订).csv',
-    charCount: '8.2k',
-    recallCount: 0,
-    uploadTime: '2024-05-13 06:48',
-    status: '排队中'
-  },
-  {
-    documentID: 'fawefwefwar24',
-    fileName: '125国内水路运输管理条例(2023修订).csv',
-    charCount: '8.2k',
-    recallCount: 0,
-    uploadTime: '2024-05-13 06:48',
-    status: '排队中'
-  },
-  {
-    documentID: 'fawefwefwar25',
-    fileName: '125国内水路运输管理条例(2023修订).csv',
-    charCount: '8.2k',
-    recallCount: 0,
-    uploadTime: '2024-05-13 06:48',
-    status: '排队中'
+const documentData = ref([])
+
+import axios from 'axios'
+// 获取对应数据库databaseID的document数据集
+async function fetchDataSet() {
+  try {
+    const response = await axios.get(
+      `http://127.0.0.1:7979/dataset/${databaseID}/articles`
+    )
+    documentData.value = response.data
+  } catch (error) {
+    console.error('请求失败:', error)
   }
-])
+}
+fetchDataSet()
 
 // 计算表格容器的最大高度
 const tableContainer = ref(null)
@@ -269,9 +91,9 @@ const calculateMaxHeight = () => {
 }
 
 // 下载文件操作
-const downloadFile = (index) => {
+const downloadFile = (documentID) => {
   // 在这里执行下载文件的逻辑，可以根据 index 获取对应的文件信息进行下载
-  console.log('下载文件：', tableData.value[index])
+  console.log('待完善-下载文件：', documentID)
 }
 
 // 路由跳转相关 跳转到文档详情页
@@ -279,12 +101,12 @@ const router = useRouter()
 // 编辑文件操作
 const editFile = (documentID) => {
   console.log('编辑文件：', documentID)
-  router.push({ name: 'id-database-document-detail', params: { documentID } })
+  router.push({ name: 'id-database-document-chunk', params: { documentID } })
 }
 
 // 删除文件操作
-const deleteFile = (index) => {
-  console.log('删除文件：', tableData.value[index])
+const deleteFile = (documentID) => {
+  console.log('待完善-删除文件：', documentID)
 }
 </script>
 
@@ -334,7 +156,7 @@ thead {
 }
 
 .column-recallcount {
-  width: 6%;
+  width: 5%;
 }
 
 .column-uploadtime {

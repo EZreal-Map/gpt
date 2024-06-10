@@ -7,7 +7,8 @@ import IDDataBaseRouterView from '@/views/IDDataBaseRouterView.vue'
 import IDDataBaseDocumentView from '@/views/IDDataBaseDocumentView.vue'
 import IDDataBaseHitTestingView from '@/views/IDDataBaseHitTestingView.vue'
 import IDDataBaseSettingView from '@/views/IDDataBaseSettingView.vue'
-import IDDataBaseDocumentDetailView from '@/views/IDDataBaseDocumentDetailView.vue'
+import IDDataBaseDocumentChunkView from '@/views/IDDataBaseDocumentChunkView.vue'
+import IDDataBaseUpdateDocumentView from '@/views/IDDataBaseUpdateDocumentView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -50,8 +51,13 @@ const router = createRouter({
         },
         {
           path: 'document/:documentID',
-          name: 'id-database-document-detail',
-          component: IDDataBaseDocumentDetailView
+          name: 'id-database-document-chunk',
+          component: IDDataBaseDocumentChunkView
+        },
+        {
+          path: 'document/update',
+          name: 'id-database-document-update',
+          component: IDDataBaseUpdateDocumentView
         }
       ]
     },

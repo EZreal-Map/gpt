@@ -1,0 +1,38 @@
+[tool.poetry]
+name = "langserve-app"
+version = "0.1.0"
+description = ""
+authors = ["Your Name <you@example.com>"]
+readme = "README.md"
+packages = [
+    { include = "app" },
+]
+
+[tool.poetry.dependencies]
+python = ">=3.11,<3.13"
+uvicorn = "^0.23.2"
+langserve = {extras = ["server"], version = ">=0.0.30"}
+pydantic = "<2"
+langchain-openai = "^0.1.8"
+langchain = "^0.2.1"
+langchain-anthropic = "^0.1.13"
+langchain-community = "^0.2.1"
+python-dotenv = "^1.0.1"
+chromadb = "^0.5.0"
+python-multipart = "^0.0.9"
+tortoise = "^0.1.1"
+tortoise-orm = "0.19.2"
+aerich = "^0.7.2"
+aiomysql = "^0.2.0"
+asyncmy = "^0.2.9"
+langchain-chroma = "^0.1.1"
+pypdf = "^4.2.0"
+cryptography = "^42.0.8"
+
+
+[tool.poetry.group.dev.dependencies]
+langchain-cli = ">=0.0.15"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

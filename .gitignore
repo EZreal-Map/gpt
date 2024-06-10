@@ -28,3 +28,16 @@ coverage
 *.sw?
 
 *.tsbuildinfo
+
+
+
+# backend
+__pycache__
+.env
+__init__.py
+
+packages
+
+document
+temp
+vectorstore

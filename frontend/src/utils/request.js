@@ -3,7 +3,7 @@ import axios from 'axios'
 import { ElMessage } from 'element-plus'
 import router from '@/router'
 
-const baseURL = 'http://127.0.0.1:8080'
+const baseURL = 'http://127.0.0.1:7979'
 // const baseURL = '/api'
 
 const instance = axios.create({
