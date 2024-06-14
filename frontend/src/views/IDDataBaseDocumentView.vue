@@ -31,8 +31,9 @@
           <td @click="editFile(document.id)" class="tdEditPointer">
             {{ document.created_at }}
           </td>
-
-          <td>document.status</td>
+          <td>
+            <el-icon><SuccessFilled color="green" /></el-icon>
+          </td>
           <td>
             <button @click="downloadFile(document.id)" class="download-button">
               下载
@@ -53,6 +54,12 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { SuccessFilled } from '@element-plus/icons-vue'
+import {
+  getDocumentsAxios,
+  getDownloadDocumentAxios,
+  deleteDocumentAxios
+} from '@/api/dataset.js'
 
 // 从路由对象中提取 databaseID 参数
 const route = useRoute()
@@ -61,13 +68,10 @@ const databaseID = route.params.databaseID
 // 模拟表格数据
 const documentData = ref([])
 
-import axios from 'axios'
 // 获取对应数据库databaseID的document数据集
-async function fetchDataSet() {
+const fetchDataSet = async () => {
   try {
-    const response = await axios.get(
-      `http://127.0.0.1:7979/dataset/${databaseID}/articles`
-    )
+    const response = await getDocumentsAxios(databaseID)
     documentData.value = response.data
   } catch (error) {
     console.error('请求失败:', error)
@@ -91,9 +95,12 @@ const calculateMaxHeight = () => {
 }
 
 // 下载文件操作
-const downloadFile = (documentID) => {
-  // 在这里执行下载文件的逻辑，可以根据 index 获取对应的文件信息进行下载
-  console.log('待完善-下载文件：', documentID)
+const downloadFile = (doucmentID) => {
+  try {
+    getDownloadDocumentAxios(doucmentID)
+  } catch (error) {
+    console.error('下载文件时出错：', error)
+  }
 }
 
 // 路由跳转相关 跳转到文档详情页
@@ -105,8 +112,16 @@ const editFile = (documentID) => {
 }
 
 // 删除文件操作
-const deleteFile = (documentID) => {
-  console.log('待完善-删除文件：', documentID)
+const deleteFile = async (documentID) => {
+  try {
+    const response = await deleteDocumentAxios(documentID)
+    console.log('删除文件成功：', response)
+
+    // 删除成功后重新获取数据
+    fetchDataSet()
+  } catch (error) {
+    console.error('请求失败:', error)
+  }
 }
 </script>
 
@@ -164,7 +179,7 @@ thead {
 }
 
 .column-status {
-  width: 5%;
+  width: 4%;
 }
 
 .column-action {

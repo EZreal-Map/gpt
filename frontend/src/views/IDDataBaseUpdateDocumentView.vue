@@ -19,7 +19,7 @@
     <el-upload
       v-show="activeStep === 1"
       v-model:file-list="fileList"
-      action="http://127.0.0.1:7979/retrieval/uploadfiles/"
+      :action="postUploadFileURLAxios()"
       multiple
       :before-remove="beforeRemove"
     >
@@ -163,44 +163,46 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import 'element-plus/es/components/message/style/css'
 import 'element-plus/es/components/message-box/style/css'
 import { useRoute, useRouter } from 'vue-router'
+import {
+  postUploadFileURLAxios,
+  postClearTempDirectoryAxios,
+  deleteTempFileAxios,
+  getTempPDFChunksAxios,
+  postMoveTempFileToDatabaseAxios
+} from '@/api/dataset.js'
 const route = useRoute()
 // 从路由对象中提取 databaseID 参数
 const databaseID = route.params.databaseID
 
-import axios from 'axios'
-
 const clearTempDirectory = async () => {
-  await axios.post('http://127.0.0.1:7979/retrieval/clear-temp-dir/')
-  console.log('IDDataBaseUpdateDocumentView.vue -- 清空temp')
+  const response = await postClearTempDirectoryAxios()
+  console.log('IDDataBaseUpdateDocumentView.vue -- 清空temp', response)
 }
 clearTempDirectory()
 
 // activeStep 等于 1 时 上传文件操作
 const fileList = ref([])
 
-const beforeRemove = (uploadFile) => {
-  return ElMessageBox.confirm(`取消上传 ${uploadFile.name} ?`, {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消'
-  }).then(
-    () => {
-      axios
-        .delete(
-          `http://127.0.0.1:7979/retrieval/deletefile/${encodeURIComponent(uploadFile.name)}`
-        )
-        .then((response) => {
-          ElMessage.success(response.data.message) // 提示删除成功
-          return true
-        })
-        .catch((error) => {
-          console.error('Error:', error) // 打印错误信息
-          return false
-        })
-    },
-    () => {
+const beforeRemove = async (uploadFile) => {
+  try {
+    console.log(uploadFile)
+    await ElMessageBox.confirm(`取消上传 ${uploadFile.name} ?`, {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消'
+    })
+
+    try {
+      const response = await deleteTempFileAxios(uploadFile.name)
+      ElMessage.success(response.data.message) // 提示删除成功
+      return true
+    } catch (error) {
+      console.error('Error:', error) // 打印错误信息
       return false
     }
-  )
+  } catch {
+    // 如果用户取消了操作
+    return false
+  }
 }
 
 // activeStep 等于 2 时数据处理操作
@@ -219,16 +221,12 @@ const step2ChunkNumData = ref([])
 
 const SplitDocument = async () => {
   try {
-    const response = await axios.get(
-      'http://127.0.0.1:7979/retrieval/pdf-files/',
-      {
-        params: {
-          chunk_size: radio2Form.value.chunkLength,
-          chunk_overlap: radio2Form.value.overlapLength,
-          separator: radio2Form.value.separatorCharacter
-        }
-      }
-    )
+    const params = {
+      chunk_size: radio2Form.value.chunkLength,
+      chunk_overlap: radio2Form.value.overlapLength,
+      separator: radio2Form.value.separatorCharacter
+    }
+    const response = await getTempPDFChunksAxios(params)
     console.log(response.data) // 返回获取的数据
     step2DocumentData.value = response.data
 
@@ -312,13 +310,14 @@ const next = async () => {
     if (activeStep.value++ >= 3) activeStep.value = 3
     if (activeStep.value === 3) {
       if (nextButtonText.value === '确认上传') {
-        const response = await axios.post(
-          `http://127.0.0.1:7979/dataset/move-temp-files/${databaseID}`,
-          {
-            chunk_size: radio2Form.value.chunkLength,
-            chunk_overlap: radio2Form.value.overlapLength,
-            separator: radio2Form.value.separatorCharacter
-          }
+        const params = {
+          chunk_size: radio2Form.value.chunkLength,
+          chunk_overlap: radio2Form.value.overlapLength,
+          separator: radio2Form.value.separatorCharacter
+        }
+        const response = await postMoveTempFileToDatabaseAxios(
+          databaseID,
+          params
         )
         console.log(response.data)
         backToIDDataBaseDocumentView(databaseID)

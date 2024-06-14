@@ -2,10 +2,10 @@
   <div class="title-container">
     <div class="title-container-left">
       <h1 class="gradient-text">我的知识库</h1>
-      <el-icon size="35" @click="backToIDDataBaseDocumentView(databaseID)"
-        ><Back
-      /></el-icon>
-      <h1>/</h1>
+      <h1 class="dataset-dir" @click="backToDataBaseView">/dataset</h1>
+      <h1 class="document-dir" @click="backToIDDataBaseDocumentView">
+        /document
+      </h1>
     </div>
 
     <div class="title-container-center">
@@ -23,10 +23,7 @@
         </template>
       </IconTextButton>
     </div>
-    <button
-      class="update-document-button"
-      @click="goToUpdateDocumentView(databaseID)"
-    >
+    <button class="update-document-button" @click="goToUpdateDocumentView">
       <el-icon><Plus /></el-icon>
       <span>上传文档</span>
     </button>
@@ -38,34 +35,36 @@
 </template>
 
 <script setup>
-import { Plus, Back } from '@element-plus/icons-vue'
+import { Plus } from '@element-plus/icons-vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Document, Aim, Setting } from '@element-plus/icons-vue'
 import { ref, computed, watch } from 'vue'
 
 // 使用 useRoute 获取路由信息
 const route = useRoute()
+const databaseID = route.params.databaseID
 
 // 使用 useRouter 获取 router 实例
 const router = useRouter()
 
+const backToDataBaseView = () => {
+  router.push({ name: 'database' }) // 使用路由名称
+}
+
 // 回到上一级
-const backToIDDataBaseDocumentView = (databaseID) => {
+const backToIDDataBaseDocumentView = () => {
   router.push({
     name: 'id-database-document',
-    params: { databaseID: databaseID }
+    params: { databaseID: databaseID.value }
   }) // 使用路由名称
 }
 
-const goToUpdateDocumentView = (databaseID) => {
+const goToUpdateDocumentView = () => {
   router.push({
     name: 'id-database-document-update',
-    params: { databaseID: databaseID }
+    params: { databaseID: databaseID.value }
   }) // 使用路由名称
 }
-
-// 获取路由参数 id
-const databaseID = route.params.databaseID
 
 const menuItems = [
   {
@@ -118,9 +117,19 @@ watch(
   align-items: center; /* 垂直居中 */
 }
 
-.title-container-left .el-icon {
+.title-container-left .dataset-dir {
   margin: 0 10px 0 50px; /* 设置图标与文字之间的间距 */
   cursor: pointer;
+}
+
+.title-container-left .document-dir {
+  cursor: pointer;
+}
+
+.title-container-left .dataset-dir:hover,
+.title-container-left .document-dir:hover {
+  background-color: #f0f0f0; /* 添加悬停时的背景色 */
+  transition: background-color 0.3s ease; /* 添加过渡效果 */
 }
 
 .title-container-center {

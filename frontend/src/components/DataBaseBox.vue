@@ -67,6 +67,7 @@
 import { ref, nextTick } from 'vue'
 import { DocumentCopy, MoreFilled, Lock, Unlock } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
+import { putDatasetAxios, deleteDatasetAxios } from '@/api/dataset.js'
 
 // defineProps 接收父组件传递的数据
 const props = defineProps({
@@ -102,10 +103,8 @@ const updateDataSet = async () => {
     description: editableDescription.value, // 可以根据需要添加描述
     privacy: editablePrivacy.value // 可以根据需要添加隐私
   }
-  const response = await axios.put(
-    `http://127.0.0.1:7979/dataset/${props.databaseID}`,
-    data
-  )
+
+  const response = await putDatasetAxios(props.databaseID, data)
   console.log('保存描述', response)
 }
 
@@ -162,7 +161,6 @@ const routeToIDDataBaseView = (databaseID) => {
 }
 
 // 下拉菜单相关
-import axios from 'axios'
 // 重命名
 const handleClickRename = () => {
   isEditingName.value = true
@@ -180,9 +178,7 @@ const handleClickModifyPrivacy = () => {
 }
 // 删除
 const handleClickDelete = async (databaseID) => {
-  const response = await axios.delete(
-    `http://127.0.0.1:7979/dataset/${databaseID}`
-  )
+  const response = await deleteDatasetAxios(databaseID)
   console.log('删除', response)
   props.fetchDataSet()
 }

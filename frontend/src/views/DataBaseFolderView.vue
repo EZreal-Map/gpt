@@ -77,11 +77,13 @@
 import { ref, onMounted } from 'vue'
 import { Plus } from '@element-plus/icons-vue'
 import DataBaseBox from '@/components/DataBaseBox.vue'
+import { getDatasetsAxios, postDatasetAxios } from '@/api/dataset.js'
 const dataSet = ref([])
 // 获取知识库列表
 async function fetchDataSet() {
   try {
-    const response = await axios.get('http://127.0.0.1:7979/dataset/')
+    const response = await getDatasetsAxios()
+    console.log(response)
     dataSet.value = response.data
   } catch (error) {
     console.error('请求失败:', error)
@@ -125,22 +127,20 @@ const rules = {
   privacy: [{ required: true, message: '请选择隐私设置', trigger: 'blur' }]
 }
 
-import axios from 'axios'
 // 创建新知识库的处理函数
 const createNewDataBaseHandle = () => {
   formRef.value.validate(async (valid) => {
     if (valid) {
       // 如果表单通过验证，则继续执行提交操作
-      await axios.post('http://127.0.0.1:7979/dataset/', {
+      await postDatasetAxios({
         name: form.value.name,
         description: form.value.description,
         privacy: form.value.privacy
       })
+
       fetchDataSet() // 重新获取知识库列表
       formRef.value.resetFields() // 重置表单
       dialogFormVisible.value = false // 关闭弹框
-
-      // 这里可以执行表单提交的逻辑
     } else {
       // 如果表单验证失败，则不执行提交操作
       console.log(valid)

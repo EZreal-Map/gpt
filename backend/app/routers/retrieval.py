@@ -51,7 +51,7 @@ async def create_upload_files(file: list[UploadFile]):
     return {"filenames": filenames}
 
 # API 路由，用于删除指定文件
-@retrieval_router.delete("/deletefile/{filename}")
+@retrieval_router.delete("/deletetempfile/{filename}")
 async def delete_file(filename: str):
     """
     删除 temp_dir 目录中的指定文件
@@ -70,8 +70,8 @@ async def delete_file(filename: str):
         raise HTTPException(status_code=404, detail=f"{filename}文件不存在")
 
 # API 路由，用于获取 temp_dir 目录中的所有 PDF 文件并进行处理
-@retrieval_router.get("/pdf-files/")
-async def get_pdf_files(chunk_size: int = Query(default=500, ge=0), 
+@retrieval_router.get("/temp-pdf-files-chunks/")
+async def get_temp_pdf_files(chunk_size: int = Query(default=500, ge=0), 
                         chunk_overlap: int = Query(default=100, ge=0), 
                         separator: str = Query(default="")):
     """
