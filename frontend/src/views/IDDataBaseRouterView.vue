@@ -1,43 +1,45 @@
 <template>
-  <div class="title-container">
-    <div class="title-container-left">
-      <h1 class="gradient-text">我的知识库</h1>
-      <h1 class="dataset-dir" @click="backToDataBaseView">/dataset</h1>
-      <h1 class="document-dir" @click="backToIDDataBaseDocumentView">
-        /document
-      </h1>
+  <div class="IDDataBaseRouterView">
+    <div class="title-container">
+      <div class="title-container-left">
+        <h1 class="gradient-text">我的知识库</h1>
+        <h1 class="dataset-dir" @click="backToDataBaseView">/dataset</h1>
+        <h1 class="document-dir" @click="backToIDDataBaseDocumentView">
+          /document
+        </h1>
+      </div>
+
+      <div class="title-container-center">
+        <IconTextButton
+          v-for="item in menuItems"
+          :key="item.route"
+          :text="item.text"
+          :route="item.route"
+          :isSelected="isSelected(item.route)"
+        >
+          <template #icon>
+            <el-icon :size="24" :color="getIconColor(item.route)">
+              <component :is="item.icon" />
+            </el-icon>
+          </template>
+        </IconTextButton>
+      </div>
+      <button class="update-document-button" @click="goToUpdateDocumentView">
+        <el-icon><Plus /></el-icon>
+        <span>上传文档</span>
+      </button>
     </div>
 
-    <div class="title-container-center">
-      <IconTextButton
-        v-for="item in menuItems"
-        :key="item.route"
-        :text="item.text"
-        :route="item.route"
-        :isSelected="isSelected(item.route)"
-      >
-        <template #icon>
-          <el-icon :size="24" :color="getIconColor(item.route)">
-            <component :is="item.icon" />
-          </el-icon>
-        </template>
-      </IconTextButton>
+    <div class="main-container">
+      <router-view></router-view>
     </div>
-    <button class="update-document-button" @click="goToUpdateDocumentView">
-      <el-icon><Plus /></el-icon>
-      <span>上传文档</span>
-    </button>
-  </div>
-
-  <div class="main-container">
-    <router-view></router-view>
   </div>
 </template>
 
 <script setup>
 import { Plus } from '@element-plus/icons-vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Document, Aim, Setting } from '@element-plus/icons-vue'
+import { Document, Aim } from '@element-plus/icons-vue'
 import { ref, computed, watch } from 'vue'
 
 // 使用 useRoute 获取路由信息
@@ -68,7 +70,7 @@ const goToUpdateDocumentView = () => {
 
 const menuItems = [
   {
-    text: '文档',
+    text: '文档集合',
     route: { name: 'id-database-document', params: { databaseID } },
     icon: Document
   },
@@ -76,11 +78,6 @@ const menuItems = [
     text: '召回测试',
     route: { name: 'id-database-hit-testing', params: { databaseID } },
     icon: Aim
-  },
-  {
-    text: '设置',
-    route: { name: 'id-database-setting', params: { databaseID } },
-    icon: Setting
   }
 ]
 
@@ -170,5 +167,15 @@ watch(
 
 h1 {
   display: inline-block; /* 将元素呈现为行内块元素 */
+}
+
+.IDDataBaseRouterView {
+  display: flex;
+  flex-direction: column; /* 垂直方向排列子元素 */
+  height: 100%; /* 确保容器占据整个可视区域 */
+}
+
+.main-container {
+  flex: 1; /* 占据父元素的剩余空间 */
 }
 </style>

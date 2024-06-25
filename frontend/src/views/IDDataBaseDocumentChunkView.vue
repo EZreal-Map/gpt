@@ -7,7 +7,10 @@
       @click="editBox(item)"
     >
       <div class="box-title">
-        <span>编号: {{ item.metadatas.chunk_count }}</span>
+        <span
+          >编号: {{ item.metadatas.chunk_count }} /
+          {{ item.metadatas.chunk_sum_num }}</span
+        >
         <span>ID: {{ item.ids.substring(0, 18) }}</span>
       </div>
       <div class="box-content">
@@ -26,10 +29,16 @@
           <span class="modal-title">编辑文档</span>
           <span class="close" @click="closeEditModal">&times;</span>
         </div>
+        <div class="modal-title-filename">
+          {{ currentItem?.metadatas.filename }}
+        </div>
         <div class="modal-info">
           <div class="info-item">
             <span>编号: </span
-            ><span>{{ currentItem?.metadatas.chunk_count }}</span>
+            ><span
+              >{{ currentItem?.metadatas.chunk_count }} /
+              {{ currentItem?.metadatas.chunk_sum_num }}</span
+            >
           </div>
           <div class="info-item">
             <span>ID: </span><span>{{ currentItem?.ids }}</span>
@@ -54,9 +63,12 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import axios from 'axios'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getDocumentChunksAxios } from '@/api/dataset.js'
+import {
+  getDocumentChunksAxios,
+  putEditChunkByIDAxios,
+  deleteChunkAxios
+} from '@/api/dataset.js'
 
 // 从路由对象中提取 documentID 参数
 const route = useRoute()
@@ -95,19 +107,13 @@ const saveEdit = async () => {
   if (currentItem.value) {
     const chunkId = currentItem.value.ids // 替换为你的 chunk ID
     try {
-      currentItem.value.documents = editContent
+      currentItem.value.page_content = editContent
       closeEditModal()
-      const response = await axios.put(
-        `http://127.0.0.1:7979/dataset/${databaseID}/edit-chunk`,
-        {
-          page_content: editContent.value
-        },
-        {
-          params: {
-            chunk_id: chunkId
-          }
-        }
-      )
+      const response = await putEditChunkByIDAxios(databaseID, {
+        page_content: editContent.value,
+        chunk_id: chunkId
+      })
+      console.log(response)
       if (response.status === 200) {
         ElMessage.success('保存成功')
       } else {
@@ -122,15 +128,13 @@ const saveEdit = async () => {
 
 const deleteChunkFunction = async (databaseID, documentID, chunkID) => {
   try {
-    // 构造 DELETE 请求的 URL
-    const url = `http://127.0.0.1:7979/dataset/${databaseID}/delete-chunk`
     // 设置查询参数
     const params = {
       article_id: documentID,
       chunk_id: chunkID
     }
     // 发送 DELETE 请求，并传递查询参数
-    const response = await axios.delete(url, { params })
+    const response = await deleteChunkAxios(databaseID, params)
     // 处理成功响应
     console.log('删除成功:', response.data)
   } catch (error) {
@@ -141,22 +145,26 @@ const deleteChunkFunction = async (databaseID, documentID, chunkID) => {
 }
 
 const deleteEdit = () => {
-  ElMessageBox.confirm('确认要删除文档吗？', {
+  ElMessageBox.confirm('确认删除分段吗？', {
     confirmButtonText: '确定',
     cancelButtonText: '取消'
-  }).then(() => {
-    if (currentItem.value) {
-      // 数据库删除数据
-      deleteChunkFunction(databaseID, documentID, currentItem.value.ids)
-
-      // 前端删除视图数据
-      documentChunks.value = documentChunks.value.filter(
-        (item) => item.ids !== currentItem.value.ids
-      )
-    }
-    closeEditModal()
-    ElMessage.success('删除成功')
   })
+    .then(async () => {
+      if (currentItem.value) {
+        // 数据库删除数据
+        await deleteChunkFunction(databaseID, documentID, currentItem.value.ids)
+
+        // 前端删除视图数据
+        documentChunks.value = documentChunks.value.filter(
+          (item) => item.ids !== currentItem.value.ids
+        )
+      }
+      closeEditModal()
+      ElMessage.success('删除成功')
+    })
+    .catch(() => {
+      ElMessage.info('已取消删除')
+    })
 }
 
 // 滚动条位置设置
@@ -168,10 +176,12 @@ onMounted(() => {
 })
 
 const calculateMaxHeight = () => {
-  const windowHeight = window.innerHeight
-  const tableContainerOffsetTop = tableContainer.value.offsetTop
-  const tableContainerMaxHeight = windowHeight - tableContainerOffsetTop - 50 // 50为额外留白，可根据实际情况调整
-  tableContainer.value.style.maxHeight = `${tableContainerMaxHeight}px`
+  if (tableContainer.value?.offsetTop) {
+    const windowHeight = window.innerHeight
+    const tableContainerOffsetTop = tableContainer.value.offsetTop
+    const tableContainerMaxHeight = windowHeight - tableContainerOffsetTop - 50 // 50为额外留白，可根据实际情况调整
+    tableContainer.value.style.maxHeight = `${tableContainerMaxHeight}px`
+  }
 }
 </script>
 
@@ -302,10 +312,15 @@ const calculateMaxHeight = () => {
   font-weight: bold;
 }
 
+.modal-title-filename {
+  font-size: 14px;
+  color: #666;
+}
+
 .modal-info {
   display: flex;
   justify-content: space-between;
-  margin: 20px 0;
+  margin-top: 10px;
 }
 
 .info-item {

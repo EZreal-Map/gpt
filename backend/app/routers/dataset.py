@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Body, Query
-from models.models import DataSet
-from pydantic import BaseModel
+from models.models import DataSet, QueryTestHistory
+from pydantic import BaseModel, validator
 from typing import List, Optional
 from uuid import UUID
 from enum import Enum
@@ -76,10 +76,10 @@ async def delete_dataset(dataset_id: UUID):
     if not dataset:
         raise HTTPException(status_code=404, detail="Dataset not found")
     
-    # 查询关联的 Article 记录并删除
-    articles = await Article.filter(dataset_id=dataset_id).all()
-    for article in articles:
-        await article.delete()
+    # 查询关联的 Article 记录并删除 已经设置 on_delete=fields.CASCADE
+    # articles = await Article.filter(dataset_id=dataset_id).all()
+    # for article in articles:
+    #     await article.delete()
     
     # 删除数据库记录
     await dataset.delete()
@@ -125,11 +125,13 @@ def extract_unique_info(documents):
         filename = document.metadata["filename"]
         total_word_count = document.metadata["total_word_count"]
         chunk_sum_num = document.metadata["chunk_sum_num"]
+        article_id = document.metadata["article_id"]
         
         if filename not in filename_info:
             filename_info[filename] = {
                 "total_word_count": total_word_count,
-                "chunk_sum_num": chunk_sum_num
+                "chunk_sum_num": chunk_sum_num,
+                "article_id": article_id
             }
     return filename_info
 
@@ -170,16 +172,17 @@ async def move_temp_files_to_dataset(dataset_id: UUID,
     filename_info = extract_unique_info(documents)
     for filename, info in filename_info.items():
         # 创建 Article 实例并保存到数据库
+        print("info",info)
         await Article.create(
+            id = info["article_id"],
             dataset_id=dataset,
             name=filename,
             character_count=info["total_word_count"],  # 总字数
-            chunk_sum_num=info["chunk_sum_num"]  # 总分块数   
+            chunk_sum_num=info["chunk_sum_num"]  # 总分块数
         )
 
     vectorstore = load_vectorstore(dataset_id)
-    vectorstore.add_documents(documents)
-
+    vectorstore.add_documents(documents) # 向向量数据库中添加文档数据,返回ids
     return {
             "message": "Files moved successfully", 
             "filename_info": filename_info, 
@@ -229,7 +232,7 @@ async def get_chunks_by_article_id(article_id: UUID):
     return transform_filename_chunks
 
 
-# 删除特定文章（article_id）对应的chunks数据/document数据的路由
+# 删除特定文章（article_id）和与之相关的chunks数据/document数据的路由
 @dataset_router.delete("/{article_id}/delete-documents")
 async def delete_documents_by_article_id(article_id: UUID):
     """
@@ -272,15 +275,15 @@ async def delete_documents_by_article_id(article_id: UUID):
         "chunk_deleted":filename_chunks
         }
 
-
-@dataset_router.get("/download-file/{document_id}", response_class=FileResponse)
-async def download_file(document_id: UUID):
+# 下载指定文章（article_id）对应的文件的路由
+@dataset_router.get("/download-file/{article_id}", response_class=FileResponse)
+async def download_file(article_id: UUID):
     """
-    根据 document_id 下载文件
-    :param document_id: 文档ID
+    根据 article_id 下载文件
+    :param article_id: 文档ID
     :return: 文件响应
     """
-    article = await Article.get_or_none(id=document_id)
+    article = await Article.get_or_none(id=article_id)
     if not article:
         raise HTTPException(status_code=404, detail="Document not found")
     
@@ -299,7 +302,7 @@ async def download_file(document_id: UUID):
     response.headers["Access-Control-Expose-Headers"] = "Content-Disposition"
     return response
 
-
+# 删除指定chunk块，通过 chunk_id
 @dataset_router.delete("/{dataset_id}/delete-chunk")
 async def delete_chunk_by_id(dataset_id: UUID, 
                              article_id: UUID = Query(None, description="Article ID for updating chunk_sum_num"),
@@ -346,7 +349,7 @@ class EditChunkDocument(BaseModel):
 
 @dataset_router.put("/{dataset_id}/edit-chunk")
 async def edit_chunk_by_id(dataset_id: UUID, 
-                           edit_request: EditChunkDocument,
+                           edit_chunk: EditChunkDocument,
                            chunk_id: UUID = Query(..., description="Chunk ID to edit")
                            ):
     """
@@ -354,7 +357,7 @@ async def edit_chunk_by_id(dataset_id: UUID,
     修改其文档内容
     :param dataset_id: 数据集ID
     :param chunk_id: 分块数据ID
-    :param edit_request: 包含新内容的请求体
+    :param edit_chunk: 包含新内容的请求体
     :return: 操作结果消息
     """
     # 加载向量数据库
@@ -369,14 +372,88 @@ async def edit_chunk_by_id(dataset_id: UUID,
     if not chunk["ids"]:
         raise HTTPException(status_code=404, detail=f"Chunk with ID {chunk_id} not found in dataset {dataset_id}")
     # 创建一个新的 Document 实例
-    page_content = edit_request.page_content
+    page_content = edit_chunk.page_content
     metadata = chunk['metadatas'][0]
-    metadata["chunk_word_count"] = len(edit_request.page_content)
+    metadata["chunk_word_count"] = len(edit_chunk.page_content)
     update_chunk_document = Document(page_content=page_content, metadata=metadata)
     # 修改指定的 chunk 内容
-    vectorstore.update_documents(ids=[str_chunk_id],documents=[update_chunk_document])
+    vectorstore.update_documents(ids=[str_chunk_id], documents=[update_chunk_document])
 
     return {
         "message": f"Chunk {chunk_id} has been edited in dataset {dataset_id}",
         "updated_chunk": update_chunk_document
+    }
+
+# QueryTestHistory有关的路由
+# 定义 Pydantic 模型用于请求体验证
+class QueryTestHistoryCreate(BaseModel):
+    dataset_id: UUID
+    query: str
+    k: int
+    min_relevance: float
+
+# 定义 Pydantic 模型用于响应体验证
+class QueryTestHistoryResponse(BaseModel):
+    id: UUID
+    dataset_id_id: UUID
+    query: str
+    k: int
+    min_relevance: float
+    created_at: str
+
+    @validator('created_at', pre=True)
+    def format_datetime(cls, value):
+        return value.strftime('%Y-%m-%d %H:%M:%S')
+
+# 获取指定 database_id 的所有 QueryTestHistory 的路由
+@dataset_router.get("/{database_id}/query-test-history/", response_model=List[QueryTestHistoryResponse])
+async def get_query_test_histories(database_id: str):
+    """
+    根据指定的databaseID获取查询测试历史记录
+    :param database_id: 数据库ID
+    :return: 查询测试历史记录列表
+    """
+    histories = await QueryTestHistory.filter(dataset_id_id=database_id).order_by('-created_at').all()
+    return histories
+
+
+# 创建新的 QueryTestHistory 的路由
+@dataset_router.post("/query-test-history", response_model=QueryTestHistoryResponse)
+async def create_query_test_history(query_test_history: QueryTestHistoryCreate):
+    """
+    创建一个新的查询测试历史记录
+    :param query_test_history: 查询测试历史记录信息
+    :return: 创建的数据库记录
+    """
+    dataset = await DataSet.get_or_none(id=query_test_history.dataset_id)
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+    
+    print("dataset",dataset)
+    # 创建新的查询测试历史记录，并明确传递 dataset 对象
+    new_query_test_history = await QueryTestHistory.create(
+        dataset_id=dataset,
+        query=query_test_history.query,
+        k=query_test_history.k,
+        min_relevance=query_test_history.min_relevance
+    )
+    return new_query_test_history
+
+# 删除指定 QueryTestHistory 的路由
+@dataset_router.delete("/query-test-history/{query_test_history_id}", response_model=dict)
+async def delete_query_test_history(query_test_history_id: UUID):
+    """
+    删除一个查询测试历史记录
+    :param query_test_history_id: 查询测试历史记录ID
+    :return: 删除结果消息
+    """
+    query_test_history = await QueryTestHistory.get_or_none(id=query_test_history_id)
+    if not query_test_history:
+        raise HTTPException(status_code=404, detail="QueryTestHistory not found")
+    
+    # 删除数据库记录
+    await query_test_history.delete()
+    
+    return {
+        "message": f"QueryTestHistory {query_test_history_id} has been deleted."
     }

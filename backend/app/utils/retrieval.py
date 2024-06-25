@@ -5,6 +5,7 @@ from langchain_chroma import Chroma
 from langchain_openai import OpenAIEmbeddings
 from typing import List
 from uuid import UUID
+import uuid
 from pathlib import Path
 import os
 
@@ -40,6 +41,7 @@ def PDF_to_documents(file_paths: List, chunk_size: int=500, chunk_overlap=100, s
         
         count = 1
         chunk_sum_num = len(temp_documents)
+        article_id = str(uuid.uuid4())
         
         for document in temp_documents:
             document.metadata["filename"] = filename
@@ -47,6 +49,8 @@ def PDF_to_documents(file_paths: List, chunk_size: int=500, chunk_overlap=100, s
             document.metadata["chunk_sum_num"] = chunk_sum_num
             document.metadata["total_word_count"] = total_word_count  # 添加总字数到metadata
             document.metadata["chunk_word_count"] = len(document.page_content)  # 添加分块字数到metadata
+            document.metadata["document_metadata_id"] = str(uuid.uuid4())  # 添加document_id到metadata
+            document.metadata["article_id"] = article_id  # 添加article_id到metadata
             count += 1
         
         documents.extend(temp_documents)

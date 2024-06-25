@@ -6,7 +6,6 @@ import AccountView from '@/views/AccountView.vue'
 import IDDataBaseRouterView from '@/views/IDDataBaseRouterView.vue'
 import IDDataBaseDocumentView from '@/views/IDDataBaseDocumentView.vue'
 import IDDataBaseHitTestingView from '@/views/IDDataBaseHitTestingView.vue'
-import IDDataBaseSettingView from '@/views/IDDataBaseSettingView.vue'
 import IDDataBaseDocumentChunkView from '@/views/IDDataBaseDocumentChunkView.vue'
 import IDDataBaseUpdateDocumentView from '@/views/IDDataBaseUpdateDocumentView.vue'
 
@@ -43,11 +42,6 @@ const router = createRouter({
           path: 'hitTesting',
           name: 'id-database-hit-testing',
           component: IDDataBaseHitTestingView
-        },
-        {
-          path: 'setting',
-          name: 'id-database-setting',
-          component: IDDataBaseSettingView
         },
         {
           path: 'document/:documentID',

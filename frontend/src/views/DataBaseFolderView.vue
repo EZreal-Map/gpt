@@ -100,10 +100,12 @@ onMounted(() => {
 })
 
 const calculateMaxHeight = () => {
-  const windowHeight = window.innerHeight
-  const tableContainerOffsetTop = tableContainer.value.offsetTop
-  const tableContainerMaxHeight = windowHeight - tableContainerOffsetTop - 70 // 70为额外留白，可根据实际情况调整
-  tableContainer.value.style.maxHeight = `${tableContainerMaxHeight}px`
+  if (tableContainer.value?.offsetTop) {
+    const windowHeight = window.innerHeight
+    const tableContainerOffsetTop = tableContainer.value.offsetTop
+    const tableContainerMaxHeight = windowHeight - tableContainerOffsetTop - 70 // 70为额外留白，可根据实际情况调整
+    tableContainer.value.style.maxHeight = `${tableContainerMaxHeight}px`
+  }
 }
 
 // 新建弹框

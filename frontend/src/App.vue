@@ -16,6 +16,9 @@ import LeftAside from '@/components/LeftAside.vue'
 </script>
 
 <style scoped>
+.layout {
+  height: 100vh;
+}
 .el-aside {
   background-color: #f4f4f7;
   text-align: center;
@@ -42,5 +45,6 @@ import LeftAside from '@/components/LeftAside.vue'
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* 阴影效果 */
   flex: 1; /* 使子容器填充父容器的剩余空间 */
   box-sizing: border-box; /* 包含内边距和边框 */
+  overflow: auto;
 }
 </style>

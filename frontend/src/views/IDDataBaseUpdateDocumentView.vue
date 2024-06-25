@@ -1,5 +1,5 @@
 <template>
-  <div class="main-container" ref="tableContainer">
+  <div class="IDDataBaseUpdateDocumentView" ref="tableContainer">
     <el-steps style="max-width: 100%" :active="activeStep" align-center>
       <el-step title="选择文件" />
       <el-step title="数据处理" />
@@ -86,7 +86,11 @@
           </div>
         </div>
       </div>
-      <div class="activeStep2-right">
+      <div
+        class="activeStep2-right"
+        v-loading="splitLoading"
+        element-loading-background="rgba(248, 248, 248, 0.8)"
+      >
         <el-tabs type="border-card">
           <el-tab-pane label="分段预览">
             <div class="segment-preview" ref="maxHeightSegmentPreview">
@@ -127,7 +131,12 @@
     </div>
 
     <!-- activeStep 等于 3 时显示上传数据 -->
-    <div class="activeStep3" v-show="activeStep === 3">
+    <div
+      class="activeStep3"
+      v-show="activeStep === 3"
+      v-loading="splitLoading"
+      element-loading-background="rgba(248, 248, 248, 0.8)"
+    >
       <el-table
         :data="step2ChunkNumData"
         style="width: 100%"
@@ -201,6 +210,7 @@ const beforeRemove = async (uploadFile) => {
     }
   } catch {
     // 如果用户取消了操作
+    ElMessage.info('已取消删除') // 提示取消删除
     return false
   }
 }
@@ -215,11 +225,17 @@ const radio2Form = ref({
   separatorCharacter: ''
 })
 
+// step2 中的分段预览数据
 const step2DocumentData = ref([])
-
+// step2 中的来源列表数据
 const step2ChunkNumData = ref([])
 
+// 控制split加载动画
+const splitLoading = ref(true)
+
 const SplitDocument = async () => {
+  // 开启加载动画
+  splitLoading.value = true
   try {
     const params = {
       chunk_size: radio2Form.value.chunkLength,
@@ -252,6 +268,8 @@ const SplitDocument = async () => {
     }))
 
     step2ChunkNumData.value = dataArray
+    // 关闭加载动画
+    splitLoading.value = false
   } catch (error) {
     console.error('Error fetching PDF files:', error)
     throw error // 抛出错误，供调用者处理
@@ -260,7 +278,7 @@ const SplitDocument = async () => {
 
 // 滚动条位置设置
 const tableContainer = ref(null)
-const tableContainerMaxHeight = ref(null) // 记录main-container容器的最大高度
+const tableContainerMaxHeight = ref(null) // 记录IDDataBaseUpdateDocumentView容器的最大高度
 // step2 中的分段预览和来源列表的最大高度
 const maxHeightSegmentPreview = ref(null)
 const maxHeightSourceList = ref(null)
@@ -271,24 +289,26 @@ onMounted(() => {
 })
 
 const calculateMaxHeight = () => {
-  // 计算main-container容器的最大高度
-  const windowHeight = window.innerHeight
-  const tableContainerOffsetTop = tableContainer.value.offsetTop
-  tableContainerMaxHeight.value = windowHeight - tableContainerOffsetTop - 50 // 50为额外留白，可根据实际情况调整
-  tableContainer.value.style.maxHeight = `${tableContainerMaxHeight.value}px`
+  if (tableContainer.value?.offsetTop) {
+    // 计算IDDataBaseUpdateDocumentView容器的最大高度
+    const windowHeight = window.innerHeight
+    const tableContainerOffsetTop = tableContainer.value.offsetTop
+    tableContainerMaxHeight.value = windowHeight - tableContainerOffsetTop - 50 // 50为额外留白，可根据实际情况调整
+    tableContainer.value.style.maxHeight = `${tableContainerMaxHeight.value}px`
 
-  // 计算segment-preview容器的最大高度
-  const maxHeightSegmentPreviewOffsetTop =
-    maxHeightSegmentPreview.value.offsetTop
-  const maxHeightSegmentPreviewMaxHeight =
-    windowHeight - maxHeightSegmentPreviewOffsetTop - 400 // 50为额外留白，可根据实际情况调整
-  maxHeightSegmentPreview.value.style.maxHeight = `${maxHeightSegmentPreviewMaxHeight}px`
+    // 计算segment-preview容器的最大高度
+    const maxHeightSegmentPreviewOffsetTop =
+      maxHeightSegmentPreview.value.offsetTop
+    const maxHeightSegmentPreviewMaxHeight =
+      windowHeight - maxHeightSegmentPreviewOffsetTop - 400 // 50为额外留白，可根据实际情况调整
+    maxHeightSegmentPreview.value.style.maxHeight = `${maxHeightSegmentPreviewMaxHeight}px`
 
-  // 计算source-list容器的最大高度
-  const maxHeightSourceListOffsetTop = maxHeightSourceList.value.offsetTop
-  const maxHeightSourceListMaxHeight =
-    windowHeight - maxHeightSourceListOffsetTop - 400 // 50为额外留白，可根据实际情况调整
-  maxHeightSourceList.value.style.maxHeight = `${maxHeightSourceListMaxHeight}px`
+    // 计算source-list容器的最大高度
+    const maxHeightSourceListOffsetTop = maxHeightSourceList.value.offsetTop
+    const maxHeightSourceListMaxHeight =
+      windowHeight - maxHeightSourceListOffsetTop - 400 // 50为额外留白，可根据实际情况调整
+    maxHeightSourceList.value.style.maxHeight = `${maxHeightSourceListMaxHeight}px`
+  }
 }
 
 // 有关步骤条功能
@@ -307,24 +327,35 @@ const backToIDDataBaseDocumentView = (databaseID) => {
 
 const next = async () => {
   try {
+    // activeStep + 1
     if (activeStep.value++ >= 3) activeStep.value = 3
-    if (activeStep.value === 3) {
-      if (nextButtonText.value === '确认上传') {
-        const params = {
-          chunk_size: radio2Form.value.chunkLength,
-          chunk_overlap: radio2Form.value.overlapLength,
-          separator: radio2Form.value.separatorCharacter
+
+    if (activeStep.value)
+      if (activeStep.value === 3) {
+        if (nextButtonText.value === '确认上传') {
+          const params = {
+            chunk_size: radio2Form.value.chunkLength,
+            chunk_overlap: radio2Form.value.overlapLength,
+            separator: radio2Form.value.separatorCharacter
+          }
+          // 开启加载动画
+          splitLoading.value = true
+          const response = await postMoveTempFileToDatabaseAxios(
+            databaseID,
+            params
+          )
+          console.log(response.data)
+          // 关闭加载动画
+          splitLoading.value = false
+          backToIDDataBaseDocumentView(databaseID)
         }
-        const response = await postMoveTempFileToDatabaseAxios(
-          databaseID,
-          params
-        )
-        console.log(response.data)
-        backToIDDataBaseDocumentView(databaseID)
+        nextButtonText.value = '确认上传'
+      } else {
+        nextButtonText.value = '下一步'
       }
-      nextButtonText.value = '确认上传'
-    } else {
-      nextButtonText.value = '下一步'
+
+    if (activeStep.value === 2) {
+      SplitDocument()
     }
   } catch (error) {
     console.error('处理 next 事件时发生错误:', error)
@@ -332,6 +363,7 @@ const next = async () => {
 }
 
 const prev = () => {
+  // activeStep - 1
   if (activeStep.value-- <= 1) activeStep.value = 1
   if (activeStep.value === 3) {
     nextButtonText.value = '确认上传'
@@ -343,10 +375,10 @@ const prev = () => {
 
 <style scoped>
 /* 主容器样式 */
-.main-container {
+.IDDataBaseUpdateDocumentView {
   position: relative;
   overflow: auto; /* 当内容溢出时显示滚动条 */
-  padding-bottom: 50px; /* 为了给按钮留出空间 */
+  height: 100%;
 }
 
 .prevStepButton {
@@ -364,6 +396,7 @@ const prev = () => {
   justify-content: space-between;
   margin-top: 40px; /* 可根据需要调整间距 */
   text-align: left;
+  height: calc(100% - 150px); /* 确保容器高度被限制 */
 }
 
 .activeStep2-left {
@@ -393,7 +426,7 @@ const prev = () => {
 }
 
 .activeStep2-right {
-  flex-grow: 1; /* 占据剩余的所有宽度 */
+  flex: 1;
   border: 1px solid #ccc; /* 可选：添加边框以区分左右部分 */
   padding: 10px; /* 可选：添加内边距 */
 }

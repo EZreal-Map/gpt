@@ -107,5 +107,69 @@ export const deleteDocumentAxios = (documentID) =>
   request.delete(`/dataset/${documentID}/delete-documents`)
 
 // IDDataBaseDocumentChunkView.vue
+// 获取指定一条文档的所有chunks
 export const getDocumentChunksAxios = (documentID) =>
   request.get(`/dataset/${documentID}/chunks`)
+
+// 通过 ID 更新chunk
+export const putEditChunkByIDAxios = (databaseID, { page_content, chunk_id }) =>
+  request.put(
+    `/dataset/${databaseID}/edit-chunk`,
+    { page_content },
+    { params: { chunk_id } }
+  )
+
+export const deleteChunkAxios = (databaseID, { article_id, chunk_id }) =>
+  request.delete(`/dataset/${databaseID}/delete-chunk`, {
+    params: {
+      article_id,
+      chunk_id
+    }
+  })
+
+// IDDataBaseHitTestingView.vue
+// 获取指定一条文档的所有chunks
+export const getHitTestingAxios = (databaseID, { query, k, min_relevance }) =>
+  request.get(`/retrieval/${databaseID}/similarity-search`, {
+    params: { query, k, min_relevance }
+  })
+
+// 通过 metadata ID 新chunk
+export const putEditChunkByMetadataIDAxios = (
+  databaseID,
+  { page_content, metadata_id }
+) =>
+  request.put(
+    `/retrieval/${databaseID}/edit-chunk`,
+    { page_content },
+    { params: { metadata_id } }
+  )
+
+// 删除指定 metadata ID 的 chunk
+export const deleteChunkByMetadataIDAxios = (
+  databaseID,
+  { article_id, metadata_id }
+) =>
+  request.delete(`/retrieval/${databaseID}/delete-chunk`, {
+    params: {
+      article_id,
+      metadata_id
+    }
+  })
+
+// 获取测试历史记录
+export const getTestHistoryAxios = (databaseID) =>
+  request.get(`/dataset/${databaseID}/query-test-history/`)
+
+// 删除测试历史记录
+export const deleteHistoryQueryAxios = (query_test_history_id) =>
+  request.delete(`/dataset/query-test-history/${query_test_history_id}`)
+
+// 新添加测试历史记录
+export const postTestHistoryAxios = ({ dataset_id, query, k, min_relevance }) =>
+  request.post(`/dataset/query-test-history`, {
+    dataset_id,
+    query,
+    k,
+    min_relevance
+  })

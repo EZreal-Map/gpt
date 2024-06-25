@@ -68,6 +68,7 @@ import { ref, nextTick } from 'vue'
 import { DocumentCopy, MoreFilled, Lock, Unlock } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
 import { putDatasetAxios, deleteDatasetAxios } from '@/api/dataset.js'
+import { ElMessage, ElMessageBox } from 'element-plus'
 
 // defineProps 接收父组件传递的数据
 const props = defineProps({
@@ -176,11 +177,22 @@ const handleClickModifyPrivacy = () => {
   emits('update:privacy', editablePrivacy.value)
   updateDataSet()
 }
+
 // 删除
 const handleClickDelete = async (databaseID) => {
-  const response = await deleteDatasetAxios(databaseID)
-  console.log('删除', response)
-  props.fetchDataSet()
+  ElMessageBox.confirm('确认删除知识库吗？', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消'
+  })
+    .then(async () => {
+      const response = await deleteDatasetAxios(databaseID)
+      console.log('删除', response)
+      props.fetchDataSet()
+      ElMessage.success('删除成功')
+    })
+    .catch(() => {
+      ElMessage.info('已取消删除')
+    })
 }
 </script>
 <style scoped>
