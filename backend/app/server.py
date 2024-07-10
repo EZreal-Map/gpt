@@ -6,6 +6,7 @@ from tortoise.contrib.fastapi import register_tortoise
 from config import settings
 from routers.retrieval import retrieval_router
 from routers.dataset import dataset_router
+from routers.appset import appset_router
 from fastapi.middleware.cors import CORSMiddleware
 
 # 加载 .env 文件中的环境变量
@@ -34,9 +35,11 @@ register_tortoise(
 
 app.include_router(chat_router, prefix="/chat")
 
+# 知识库 有关路由
 app.include_router(retrieval_router, prefix="/retrieval")
-
 app.include_router(dataset_router, prefix="/dataset")
+# 应用 有关路由
+app.include_router(appset_router, prefix="/appset")
 
 if __name__ == "__main__":
     import uvicorn

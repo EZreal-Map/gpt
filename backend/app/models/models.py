@@ -26,3 +26,13 @@ class QueryTestHistory(Model):
     k = fields.IntField()
     min_relevance = fields.FloatField()
     created_at = fields.DatetimeField(auto_now_add=True)
+
+class APPSet(Model):
+    id = fields.UUIDField(pk=True)
+    name = fields.CharField(max_length=255)
+    description = fields.TextField()
+    privacy = fields.CharField(max_length=20)
+    created_at = fields.DatetimeField(auto_now_add=True)
+    updated_at = fields.DatetimeField(auto_now=True)
+    datasets = fields.ManyToManyField('models.DataSet', related_name='appsets')
+    

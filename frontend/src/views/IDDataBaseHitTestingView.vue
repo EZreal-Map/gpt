@@ -231,7 +231,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  getHitTestingAxios,
+  postSimilaritySearchAxios,
   putEditChunkByMetadataIDAxios,
   deleteChunkByMetadataIDAxios,
   getTestHistoryAxios,
@@ -276,7 +276,8 @@ const getHistoryQueryResult = async ({ query, k, min_relevance }) => {
   // 开始加载动画
   vloadingBoolean.value = true
 
-  const response = await getHitTestingAxios(databaseID, {
+  const response = await postSimilaritySearchAxios({
+    dataset_ids: [databaseID],
     query,
     k,
     min_relevance

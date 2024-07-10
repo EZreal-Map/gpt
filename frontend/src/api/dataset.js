@@ -1,17 +1,6 @@
 import request from '@/utils/request'
 import { baseURL } from '@/utils/request'
 
-// // 文章：根据ID获取文章详情
-// export const getBlogIDService = (id) => request.get(`/blog/${id}`)
-// // 文章：根据ID修改文章 title-content
-// export const putBlogIDService = (id, title, content, tag) =>
-//   request.put(`/blog/${id}`, { title, content, tag })
-// // 文章：新建文章
-// export const postBlogService = (title, content, tag) =>
-//   request.post('/blog', { title, content, tag })
-// // 文章：根据ID删除文章
-// export const deleteBlogIDService = (id) => request.delete(`/blog/${id}`)
-
 // DataBaseFolderView.vue
 // 获取所有 “条” 知识库数据
 export const getDatasetsAxios = () => request.get('/dataset/')
@@ -129,9 +118,22 @@ export const deleteChunkAxios = (databaseID, { article_id, chunk_id }) =>
 
 // IDDataBaseHitTestingView.vue
 // 获取指定一条文档的所有chunks
-export const getHitTestingAxios = (databaseID, { query, k, min_relevance }) =>
-  request.get(`/retrieval/${databaseID}/similarity-search`, {
-    params: { query, k, min_relevance }
+// export const getHitTestingAxios = (databaseID, { query, k, min_relevance }) =>
+//   request.get(`/retrieval/${databaseID}/similarity-search`, {
+//     params: { query, k, min_relevance }
+//   })
+
+export const postSimilaritySearchAxios = ({
+  dataset_ids,
+  query,
+  k,
+  min_relevance
+}) =>
+  request.post('/retrieval/similarity-search', {
+    dataset_ids,
+    query,
+    k,
+    min_relevance
   })
 
 // 通过 metadata ID 新chunk

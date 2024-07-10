@@ -8,8 +8,12 @@ from uuid import UUID
 import uuid
 from pathlib import Path
 import os
+import chromadb
+from fastapi import HTTPException
 
-def PDF_to_documents(file_paths: List, chunk_size: int=500, chunk_overlap=100, separator="") -> List[Document]:
+client = chromadb.HttpClient(host='localhost', port=9786)
+
+def PDF_to_documents(file_paths: List, chunk_size: int=500, chunk_overlap=100, separator="", dataset_id="") -> List[Document]:
     """
     Load and split PDF files into documents.
     :param file_paths: a list of file paths
@@ -41,7 +45,6 @@ def PDF_to_documents(file_paths: List, chunk_size: int=500, chunk_overlap=100, s
         
         count = 1
         chunk_sum_num = len(temp_documents)
-        article_id = str(uuid.uuid4())
         
         for document in temp_documents:
             document.metadata["filename"] = filename
@@ -50,7 +53,8 @@ def PDF_to_documents(file_paths: List, chunk_size: int=500, chunk_overlap=100, s
             document.metadata["total_word_count"] = total_word_count  # 添加总字数到metadata
             document.metadata["chunk_word_count"] = len(document.page_content)  # 添加分块字数到metadata
             document.metadata["document_metadata_id"] = str(uuid.uuid4())  # 添加document_id到metadata
-            document.metadata["article_id"] = article_id  # 添加article_id到metadata
+            document.metadata["article_id"] = str(uuid.uuid4())  # 添加article_id到metadata
+            document.metadata["dataset_id"] = str(dataset_id)  # 添加dataset_id到metadata
             count += 1
         
         documents.extend(temp_documents)
@@ -65,13 +69,25 @@ def get_vectorstore_path(dataset_id: UUID) -> str:
     vectorstore_path.mkdir(parents=True, exist_ok=True)
     return str(vectorstore_path)
 
+# def load_vectorstore(dataset_id: UUID, embedding_function = OpenAIEmbeddings()) -> Chroma:
+#     vectorstore_path = get_vectorstore_path(dataset_id)
+#     print(f"Loading vectorstore from {vectorstore_path}")
+    
+#     vectorstore = Chroma(
+#         embedding_function = embedding_function,
+#         persist_directory = vectorstore_path
+#     )
+#     return vectorstore
+
 def load_vectorstore(dataset_id: UUID, embedding_function = OpenAIEmbeddings()) -> Chroma:
-    vectorstore_path = get_vectorstore_path(dataset_id)
-    print(f"Loading vectorstore from {vectorstore_path}")
+    # vectorstore_path = get_vectorstore_path(dataset_id)
+    # collection = client.get_or_create_collection(dataset_id)
+    print(f"Loading vectorstore id: {dataset_id}")
     
     vectorstore = Chroma(
-        embedding_function = embedding_function,
-        persist_directory = vectorstore_path
+        client=client,
+        collection_name=dataset_id,
+        embedding_function=embedding_function,
     )
     return vectorstore
 
@@ -103,4 +119,25 @@ def transform_data(data, keys):
 
     return transformed_data
 
+
+def retrieval_similarity_search(dataset_ids: List[UUID], query: str, k: int, min_relevance: float):
+    all_docs_and_scores = []
+
+    for dataset_id in dataset_ids:
+        try:
+            # 加载向量数据库
+            vectorstore = load_vectorstore(dataset_id)
+            docs_and_scores = vectorstore.similarity_search_with_score(query=query, k=k)
+            all_docs_and_scores.extend([
+                {
+                    "document": doc,
+                    "score": 1 - score
+                } for doc, score in docs_and_scores if 1 - score >= min_relevance
+            ])
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    # 按照分数从高到低排序，并选出前k个结果
+    sorted_docs_and_scores = sorted(all_docs_and_scores, key=lambda x: x['score'], reverse=True)[:k]
+    return sorted_docs_and_scores
 

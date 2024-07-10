@@ -107,7 +107,14 @@ const saveEdit = async () => {
   if (currentItem.value) {
     const chunkId = currentItem.value.ids // 替换为你的 chunk ID
     try {
-      currentItem.value.page_content = editContent
+      // 前端edit视图数据
+      documentChunks.value.forEach((item) => {
+        if (item.ids === currentItem.value.ids) {
+          item.documents = editContent.value
+          item.metadatas.chunk_word_count = editContent.value.length
+          console.log(item.documents)
+        }
+      })
       closeEditModal()
       const response = await putEditChunkByIDAxios(databaseID, {
         page_content: editContent.value,

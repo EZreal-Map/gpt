@@ -1,16 +1,16 @@
 from fastapi import APIRouter, HTTPException, Body, Query
-from models.models import DataSet, QueryTestHistory
+from models.models import DataSet, Article, QueryTestHistory
 from pydantic import BaseModel, validator
-from typing import List, Optional
+from typing import List, Optional, Union
 from uuid import UUID
 from enum import Enum
 import os
 import shutil
 from pathlib import Path
 from utils.retrieval import PDF_to_documents, load_vectorstore, transform_data
-from models.models import Article
 from fastapi.responses import FileResponse
 from langchain.docstore.document import Document
+from datetime import datetime
 
 # 创建一个APIRouter实例
 dataset_router = APIRouter()
@@ -21,15 +21,10 @@ class PrivacyEnum(str, Enum):
     PUBLIC = "公开"
 
 # 定义 Pydantic 模型用于请求体验证
-class DataSetCreate(BaseModel):
+class DataSetPydantic(BaseModel):
     name: str
     description: Optional[str] = None
     privacy: PrivacyEnum
-
-class DataSetUpdate(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    privacy: Optional[PrivacyEnum] = None
 
 # 定义 Pydantic 模型用于响应体验证
 class DataSetResponse(BaseModel):
@@ -37,19 +32,23 @@ class DataSetResponse(BaseModel):
     name: str
     description: Optional[str]
     privacy: str
+    created_at: Union[str, datetime]
 
 # 获取所有 DataSet 的路由
-@dataset_router.get("/", response_model=List[DataSetResponse])
+@dataset_router.get("/", response_model=List[DataSetResponse], tags=["dataset"])
 async def get_all_datasets():
     """
     获取所有数据集
     :return: 数据集列表
     """
-    return await DataSet.all()
+    datasets = await DataSet.all().order_by('-created_at')
+    for dataset in datasets:
+        dataset.created_at = dataset.created_at.strftime('%Y-%m-%d %H:%M:%S')
+    return datasets
 
 # 创建新的 DataSet 的路由
-@dataset_router.post("/", response_model=DataSetResponse)
-async def create_dataset(dataset: DataSetCreate):
+@dataset_router.post("/", response_model=DataSetResponse, tags=["dataset"])
+async def create_dataset(dataset: DataSetPydantic):
     """
     创建一个新的数据集
     :param dataset: 数据集信息
@@ -65,7 +64,7 @@ async def create_dataset(dataset: DataSetCreate):
     return new_dataset
 
 # 删除指定 DataSet 的路由
-@dataset_router.delete("/{dataset_id}", response_model=dict)
+@dataset_router.delete("/{dataset_id}", response_model=dict, tags=["dataset"])
 async def delete_dataset(dataset_id: UUID):
     """
     删除一个数据集
@@ -81,6 +80,9 @@ async def delete_dataset(dataset_id: UUID):
     # for article in articles:
     #     await article.delete()
     
+    # 删除关联的 APPSet 中的关联记录  ManyToManyField 不支持 on_delete 参数
+    await dataset.appsets.clear()
+    
     # 删除数据库记录
     await dataset.delete()
     
@@ -90,19 +92,23 @@ async def delete_dataset(dataset_id: UUID):
         shutil.rmtree(folder_path_document)
 
     # 删除对应的文件夹
-    folder_path_vectorstore = f"static/vectorstore/{dataset_id}"
-    if os.path.exists(folder_path_vectorstore):
-        shutil.rmtree(folder_path_vectorstore)
+    # folder_path_vectorstore = f"static/vectorstore/{dataset_id}"
+    # if os.path.exists(folder_path_vectorstore):
+    #     shutil.rmtree(folder_path_vectorstore)
+    # 新版本删除向量数据库  client.delete_collection()
+    load_vectorstore(dataset_id).delete_collection()
     
     return {
+        "message": f"Dataset {dataset_id} has been deleted. \
+            All related [articles(on_delete=fields.CASCADE), queryhistory(on_delete=fields.CASCADE), \
+            appsets(join), files(local), vectorstore(client)] have been deleted.",
         "dataset": dataset,
-        "folder_path_document": folder_path_document,
-        "folder_path_vectorstore": folder_path_vectorstore
+        "folder_path_document": folder_path_document
         }
 
 # 更新指定 DataSet 的路由
-@dataset_router.put("/{dataset_id}", response_model=DataSetResponse)
-async def update_dataset(dataset_id: UUID, dataset_update: DataSetUpdate):
+@dataset_router.put("/{dataset_id}", response_model=DataSetResponse, tags=["dataset"])
+async def update_dataset(dataset_id: UUID, dataset_update: DataSetPydantic):
     """
     更新一个数据集
     :param dataset_id: 数据集ID
@@ -136,7 +142,7 @@ def extract_unique_info(documents):
     return filename_info
 
 # 将 temp_dir 中的所有文件移动到指定的 dataset 目录下的路由
-@dataset_router.post("/move-temp-files/{dataset_id}", response_model=dict)
+@dataset_router.post("/move-temp-files/{dataset_id}", response_model=dict, tags=["dataset"])
 async def move_temp_files_to_dataset(dataset_id: UUID,
                                     chunk_size: int = Body(default=500, ge=0), 
                                     chunk_overlap: int = Body(default=100, ge=0), 
@@ -167,7 +173,7 @@ async def move_temp_files_to_dataset(dataset_id: UUID,
         filenames.append(str(target_file_path))
 
     # 将 PDF 文件转换为文档内容
-    documents = PDF_to_documents(filenames, chunk_size, chunk_overlap, separator)
+    documents = PDF_to_documents(filenames, chunk_size, chunk_overlap, separator, dataset_id)
 
     filename_info = extract_unique_info(documents)
     for filename, info in filename_info.items():
@@ -192,7 +198,7 @@ async def move_temp_files_to_dataset(dataset_id: UUID,
 
 
 # 获取特定数据集（dataset_id）对应的所有文章数据的路由
-@dataset_router.get("/{dataset_id}/articles")
+@dataset_router.get("/{dataset_id}/articles", tags=["dataset"])
 async def get_articles_by_dataset_id(dataset_id: UUID):
     """
     获取特定数据集（dataset_id）对应的所有文章数据
@@ -207,7 +213,7 @@ async def get_articles_by_dataset_id(dataset_id: UUID):
 
 
 # 获取特定文章（article_id）对应的所有分块数据的路由
-@dataset_router.get("/{article_id}/chunks")
+@dataset_router.get("/{article_id}/chunks", tags=["dataset"])
 async def get_chunks_by_article_id(article_id: UUID):
     """
     获取特定文章（article_id）对应的所有分块数据
@@ -233,7 +239,7 @@ async def get_chunks_by_article_id(article_id: UUID):
 
 
 # 删除特定文章（article_id）和与之相关的chunks数据/document数据的路由
-@dataset_router.delete("/{article_id}/delete-documents")
+@dataset_router.delete("/{article_id}/delete-documents", tags=["dataset"])
 async def delete_documents_by_article_id(article_id: UUID):
     """
     删除特定文章（article_id）对应的所有文档数据
@@ -276,7 +282,7 @@ async def delete_documents_by_article_id(article_id: UUID):
         }
 
 # 下载指定文章（article_id）对应的文件的路由
-@dataset_router.get("/download-file/{article_id}", response_class=FileResponse)
+@dataset_router.get("/download-file/{article_id}", response_class=FileResponse, tags=["dataset"])
 async def download_file(article_id: UUID):
     """
     根据 article_id 下载文件
@@ -303,7 +309,7 @@ async def download_file(article_id: UUID):
     return response
 
 # 删除指定chunk块，通过 chunk_id
-@dataset_router.delete("/{dataset_id}/delete-chunk")
+@dataset_router.delete("/{dataset_id}/delete-chunk", tags=["dataset"])
 async def delete_chunk_by_id(dataset_id: UUID, 
                              article_id: UUID = Query(None, description="Article ID for updating chunk_sum_num"),
                              chunk_id: UUID = Query(..., description="Chunk ID to delete")
@@ -347,7 +353,7 @@ async def delete_chunk_by_id(dataset_id: UUID,
 class EditChunkDocument(BaseModel):
     page_content: str
 
-@dataset_router.put("/{dataset_id}/edit-chunk")
+@dataset_router.put("/{dataset_id}/edit-chunk", tags=["dataset"])
 async def edit_chunk_by_id(dataset_id: UUID, 
                            edit_chunk: EditChunkDocument,
                            chunk_id: UUID = Query(..., description="Chunk ID to edit")
@@ -406,7 +412,7 @@ class QueryTestHistoryResponse(BaseModel):
         return value.strftime('%Y-%m-%d %H:%M:%S')
 
 # 获取指定 database_id 的所有 QueryTestHistory 的路由
-@dataset_router.get("/{database_id}/query-test-history/", response_model=List[QueryTestHistoryResponse])
+@dataset_router.get("/{database_id}/query-test-history/", response_model=List[QueryTestHistoryResponse], tags=["dataset"])
 async def get_query_test_histories(database_id: str):
     """
     根据指定的databaseID获取查询测试历史记录
@@ -418,7 +424,7 @@ async def get_query_test_histories(database_id: str):
 
 
 # 创建新的 QueryTestHistory 的路由
-@dataset_router.post("/query-test-history", response_model=QueryTestHistoryResponse)
+@dataset_router.post("/query-test-history", response_model=QueryTestHistoryResponse, tags=["dataset"])
 async def create_query_test_history(query_test_history: QueryTestHistoryCreate):
     """
     创建一个新的查询测试历史记录
@@ -440,7 +446,7 @@ async def create_query_test_history(query_test_history: QueryTestHistoryCreate):
     return new_query_test_history
 
 # 删除指定 QueryTestHistory 的路由
-@dataset_router.delete("/query-test-history/{query_test_history_id}", response_model=dict)
+@dataset_router.delete("/query-test-history/{query_test_history_id}", response_model=dict, tags=["dataset"])
 async def delete_query_test_history(query_test_history_id: UUID):
     """
     删除一个查询测试历史记录

@@ -40,7 +40,7 @@
 import { Plus } from '@element-plus/icons-vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Document, Aim } from '@element-plus/icons-vue'
-import { ref, computed, watch } from 'vue'
+import { computed } from 'vue'
 
 // 使用 useRoute 获取路由信息
 const route = useRoute()
@@ -81,7 +81,7 @@ const menuItems = [
   }
 ]
 
-const currentRoute = ref(route.path)
+// const currentRoute = ref(route.path)
 
 const isSelected = (itemRoute) => {
   const itemRouteUrl = router.resolve(itemRoute).href
@@ -93,12 +93,12 @@ const getIconColor = (itemRoute) => {
 }
 
 // 监听路由变化
-watch(
-  () => route.path,
-  (newPath) => {
-    currentRoute.value = newPath
-  }
-)
+// watch(
+//   () => route.path,
+//   (newPath) => {
+//     currentRoute.value = newPath
+//   }
+// )
 </script>
 
 <style scoped>

@@ -16,6 +16,9 @@
       v-model:description="item.description"
       v-model:privacy="item.privacy"
       :fetchDataSet="fetchDataSet"
+      :putDatasetAxios="putDatasetAxios"
+      :deleteDatasetAxios="deleteDatasetAxios"
+      :created_at="item.created_at"
     ></DataBaseBox>
   </div>
 
@@ -77,7 +80,12 @@
 import { ref, onMounted } from 'vue'
 import { Plus } from '@element-plus/icons-vue'
 import DataBaseBox from '@/components/DataBaseBox.vue'
-import { getDatasetsAxios, postDatasetAxios } from '@/api/dataset.js'
+import {
+  getDatasetsAxios,
+  postDatasetAxios,
+  putDatasetAxios,
+  deleteDatasetAxios
+} from '@/api/dataset.js'
 const dataSet = ref([])
 // 获取知识库列表
 async function fetchDataSet() {

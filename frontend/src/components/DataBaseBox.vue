@@ -1,5 +1,5 @@
 <template>
-  <div class="box" @click="routeToIDDataBaseView(databaseID)">
+  <div class="box" @click="routeToIDDataBaseView()">
     <div class="title-container">
       <div class="title-left-name">
         <el-icon size="30" color="#0056b3"><DocumentCopy /></el-icon>
@@ -35,7 +35,7 @@
               <el-dropdown-item @click="handleClickModifyPrivacy"
                 >修改隐私</el-dropdown-item
               >
-              <el-dropdown-item divided @click="handleClickDelete(databaseID)"
+              <el-dropdown-item divided @click="handleClickDelete()"
                 >删除</el-dropdown-item
               >
             </el-dropdown-menu>
@@ -55,10 +55,13 @@
         ref="descriptionInput"
       />
     </div>
-    <div class="bottom-container" @click="changePrive">
-      <el-icon size="18" v-if="privacy === '私有'"><Lock /> </el-icon>
-      <el-icon size="18" v-else><Unlock /></el-icon>
-      <span>{{ privacy }}</span>
+    <div class="bottom-container">
+      <div class="bottom-container-left" @click="changePrive">
+        <el-icon size="18" v-if="privacy === '私有'"><Lock /> </el-icon>
+        <el-icon size="18" v-else><Unlock /></el-icon>
+        <span>{{ privacy }}</span>
+      </div>
+      <span class="bottom-container-right">{{ created_at }}</span>
     </div>
   </div>
 </template>
@@ -66,9 +69,18 @@
 <script setup>
 import { ref, nextTick } from 'vue'
 import { DocumentCopy, MoreFilled, Lock, Unlock } from '@element-plus/icons-vue'
-import { useRouter } from 'vue-router'
-import { putDatasetAxios, deleteDatasetAxios } from '@/api/dataset.js'
+import { useRoute, useRouter } from 'vue-router'
+
 import { ElMessage, ElMessageBox } from 'element-plus'
+
+let appConfigurationView = false
+// 使用 useRoute 获取路由信息
+const route = useRoute()
+if (route.params?.appID) {
+  appConfigurationView = true
+}
+
+console.log('appConfigurationView', appConfigurationView)
 
 // defineProps 接收父组件传递的数据
 const props = defineProps({
@@ -76,7 +88,11 @@ const props = defineProps({
   name: String,
   description: String,
   privacy: String,
-  fetchDataSet: Function
+  fetchDataSet: Function,
+  appID: String,
+  putDatasetAxios: Function,
+  deleteDatasetAxios: Function,
+  created_at: String
 })
 
 // defineEmits 定义组件的事件
@@ -89,6 +105,7 @@ const emits = defineEmits([
 // name 修改相关变量
 const isEditingName = ref(false)
 const editableName = ref(props.name)
+
 const nameInput = ref(null)
 // description 修改相关变量
 const isEditingDesctiption = ref(false)
@@ -105,7 +122,8 @@ const updateDataSet = async () => {
     privacy: editablePrivacy.value // 可以根据需要添加隐私
   }
 
-  const response = await putDatasetAxios(props.databaseID, data)
+  const ID = props.databaseID || props.appID
+  const response = await props.putDatasetAxios(ID, data)
   console.log('保存描述', response)
 }
 
@@ -155,10 +173,17 @@ const changePrive = (event) => {
 
 // 路由跳转相关 跳转到文档详情页
 const router = useRouter()
-const routeToIDDataBaseView = (databaseID) => {
-  console.log('跳转到文档', databaseID)
-  // router.push(`/database/${databaseID}`)
-  router.push({ name: 'id-database', params: { databaseID } })
+const routeToIDDataBaseView = () => {
+  const databaseID = props.databaseID
+  if (databaseID) {
+    console.log('跳转到文档', databaseID)
+    // router.push(`/database/${databaseID}`)
+    router.push({ name: 'id-database', params: { databaseID } })
+  } else {
+    const appID = props.appID
+    console.log('跳转到应用', appID)
+    router.push({ name: 'id-app', params: { appID } })
+  }
 }
 
 // 下拉菜单相关
@@ -179,15 +204,20 @@ const handleClickModifyPrivacy = () => {
 }
 
 // 删除
-const handleClickDelete = async (databaseID) => {
+const handleClickDelete = async () => {
   ElMessageBox.confirm('确认删除知识库吗？', {
     confirmButtonText: '确定',
     cancelButtonText: '取消'
   })
     .then(async () => {
-      const response = await deleteDatasetAxios(databaseID)
+      const ID = props.databaseID || props.appID
+      const response = await props.deleteDatasetAxios(ID)
+      if (appConfigurationView) {
+        router.push({ name: 'app' })
+      } else {
+        props.fetchDataSet()
+      }
       console.log('删除', response)
-      props.fetchDataSet()
       ElMessage.success('删除成功')
     })
     .catch(() => {
@@ -253,13 +283,24 @@ const handleClickDelete = async (databaseID) => {
 .bottom-container {
   position: absolute;
   bottom: 10px;
+  left: 10px; /* 调整左边距 */
+  right: 10px; /* 调整右边距 */
   display: flex;
   align-items: center;
-  cursor: pointer;
+  justify-content: space-between;
 }
 
-.bottom-container .el-icon {
+.bottom-container .bottom-container-left {
+  display: flex;
+  align-items: center;
+}
+
+.bottom-container .bottom-container-left .el-icon {
   margin-right: 2px;
+}
+
+.bottom-container .bottom-container-right {
+  margin-left: auto; /* 将日期推到最右边 */
 }
 
 .name-input,

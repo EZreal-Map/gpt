@@ -1,7 +1,7 @@
-from fastapi import APIRouter, UploadFile, HTTPException, Query
+from fastapi import APIRouter, UploadFile, HTTPException, Query, Body
 from pathlib import Path
 import shutil
-from utils.retrieval import PDF_to_documents, load_vectorstore
+from utils.retrieval import PDF_to_documents, load_vectorstore, retrieval_similarity_search
 from models.models import Article
 from uuid import UUID
 from pydantic import BaseModel
@@ -25,7 +25,7 @@ def clear_temp_dir():
             temp_file.unlink()  # 删除文件
 
 # API 路由，用于清空 temp_dir 目录
-@retrieval_router.post("/clear-temp-dir/")
+@retrieval_router.post("/clear-temp-dir/", tags=["retrieval"])
 async def clear_temp_directory():
     """
     清空 temp_dir 目录中的所有文件
@@ -35,7 +35,7 @@ async def clear_temp_directory():
     return {"message": "Temporary directory cleared successfully."}
 
 # API 路由，用于上传文件
-@retrieval_router.post("/uploadfiles/")
+@retrieval_router.post("/uploadfiles/", tags=["retrieval"])
 async def create_upload_files(file: list[UploadFile]):
     """
     上传文件并将其保存到 temp_dir 目录
@@ -54,7 +54,7 @@ async def create_upload_files(file: list[UploadFile]):
     return {"filenames": filenames}
 
 # API 路由，用于删除指定文件
-@retrieval_router.delete("/deletetempfile/{filename}")
+@retrieval_router.delete("/deletetempfile/{filename}", tags=["retrieval"])
 async def delete_file(filename: str):
     """
     删除 temp_dir 目录中的指定文件
@@ -73,7 +73,7 @@ async def delete_file(filename: str):
         raise HTTPException(status_code=404, detail=f"{filename}文件不存在")
 
 # API 路由，用于获取 temp_dir 目录中的所有 PDF 文件并进行处理
-@retrieval_router.get("/temp-pdf-files-chunks/")
+@retrieval_router.get("/temp-pdf-files-chunks/", tags=["retrieval"])
 async def get_temp_pdf_files(chunk_size: int = Query(default=500, ge=0), 
                         chunk_overlap: int = Query(default=100, ge=0), 
                         separator: str = Query(default="")):
@@ -90,49 +90,33 @@ async def get_temp_pdf_files(chunk_size: int = Query(default=500, ge=0),
     documents = PDF_to_documents(pdf_files, chunk_size, chunk_overlap, separator)
     return documents
 
-@retrieval_router.get("/{dataset_id}/similarity-search")
-async def similarity_search(dataset_id: UUID, 
-                            query: str = Query(..., description="The query text to search for"), 
-                            k: int = Query(4, description="The number of similar chunks to return"), 
-                            min_relevance: float = Query(0.5, description="The minimum relevance score to return")):
+class SearchRequest(BaseModel):
+    dataset_ids: list[UUID]
+    query: str
+    k: int = 4
+    min_relevance: float = 0.5
+
+@retrieval_router.post("/similarity-search", tags=["retrieval"])
+async def similarity_search(search_request: SearchRequest = Body(...)):
     """
-    查询指定数据集（dataset_id）中与查询文本（query）最相似的分块数据（chunks）
+    查询指定数据集列表（dataset_ids）中与查询文本（query）最相似的分块数据（chunks）
     
-    :param dataset_id: 数据集ID
-    :param query: 查询文本
+    :param search_request: 查询请求体
     :return: 查询到的相关分块数据列表
     """
-    # 加载向量数据库
-    vectorstore = load_vectorstore(dataset_id)
+    docs_and_scores = retrieval_similarity_search(
+        search_request.dataset_ids, 
+        search_request.query, 
+        search_request.k, 
+        search_request.min_relevance
+    )
 
-    # 使用similarity_search_with_score查询相关chunks
-    try:
-        docs_and_scores = vectorstore.similarity_search_with_score(query=query, k=k)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-    # # 构造返回结果
-    # results = [
-    #     Chunk(id=doc.id, content=doc.content, score=score) 
-    #     for doc, score in docs_and_scores
-    # ]
-    print(docs_and_scores[0][1])
-    
-    # 原来的分数是相似度，现在将其转换为1减去相似度，List[Tuple[Document, float]]
-    # 构造新的结果列表，将分数转换为1减去原始分数
-    modified_docs_and_scores = [
-        {
-        "document":doc,
-        "score": 1 - score
-        } for doc, score in docs_and_scores if 1-score >= min_relevance
-    ]
-
-    return modified_docs_and_scores
+    return docs_and_scores
 
 class EditChunkDocument(BaseModel):
     page_content: str
 
-@retrieval_router.put("/{dataset_id}/edit-chunk")
+@retrieval_router.put("/{dataset_id}/edit-chunk", tags=["retrieval"])
 async def edit_chunk_by_metadata_id(dataset_id: UUID, 
                            edit_chunk: EditChunkDocument,
                            metadata_id: UUID = Query(..., description="Chunk document metadata ID to edit")
@@ -172,7 +156,7 @@ async def edit_chunk_by_metadata_id(dataset_id: UUID,
 
 
 # 删除指定chunk块，通过 chunk_id
-@retrieval_router.delete("/{dataset_id}/delete-chunk")
+@retrieval_router.delete("/{dataset_id}/delete-chunk", tags=["retrieval"])
 async def delete_chunk_by_metadata_id(dataset_id: UUID, 
                              article_id: UUID = Query(None, description="Article ID for updating chunk_sum_num"),
                              metadata_id: UUID = Query(..., description="Chunk document metadata ID to delete")

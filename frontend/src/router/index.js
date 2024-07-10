@@ -9,6 +9,11 @@ import IDDataBaseHitTestingView from '@/views/IDDataBaseHitTestingView.vue'
 import IDDataBaseDocumentChunkView from '@/views/IDDataBaseDocumentChunkView.vue'
 import IDDataBaseUpdateDocumentView from '@/views/IDDataBaseUpdateDocumentView.vue'
 
+import APPIDRouterView from '@/views/APPIDRouterView.vue'
+import APPIDConfiguration from '@/views/APPIDConfiguration.vue'
+import APPIDChat from '@/views/APPIDChat.vue'
+import APPIDPublish from '@/views/APPIDPublish.vue'
+
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
@@ -18,6 +23,34 @@ const router = createRouter({
     },
     { path: '/app', name: 'app', component: AppView },
     {
+      path: '/app/:appID',
+      name: 'id-app',
+      component: APPIDRouterView,
+      redirect: (to) => {
+        return {
+          name: 'id-app-configuration',
+          params: { appID: to.params.appID }
+        }
+      },
+      children: [
+        {
+          path: 'configuration',
+          name: 'id-app-configuration',
+          component: APPIDConfiguration
+        },
+        {
+          path: 'chat-test',
+          name: 'id-app-chat',
+          component: APPIDChat
+        },
+        {
+          path: 'publish',
+          name: 'id-app-publish',
+          component: APPIDPublish
+        }
+      ]
+    },
+    {
       path: '/database',
       name: 'database',
       component: DataBaseFolderView
@@ -26,6 +59,7 @@ const router = createRouter({
       path: '/database/:databaseID',
       name: 'id-database',
       component: IDDataBaseRouterView,
+      // 重定向其子路径 /database/:databaseID/document
       redirect: (to) => {
         return {
           name: 'id-database-document',

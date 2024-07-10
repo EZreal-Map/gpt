@@ -41,3 +41,7 @@ packages
 document
 temp
 vectorstore
+
+# 临时测试文件
+server2.py
+test.py
