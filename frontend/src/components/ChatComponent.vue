@@ -52,6 +52,10 @@ import { fetchEventSource } from '@microsoft/fetch-event-source'
 import { baseURL } from '@/utils/request.js'
 import QAContainer from '@/components/QAContainer.vue'
 import { Top, CircleClose } from '@element-plus/icons-vue'
+import { useRoute } from 'vue-router'
+
+// 使用 useRoute 获取路由信息
+const appID = useRoute().params.appID
 
 // messages -> 问答对话集合
 // newQuery -> 存放input的问题
@@ -106,9 +110,7 @@ const sendMessage = () => {
     },
     body: JSON.stringify({
       query: query,
-      dataset_ids: ['1ecac09e-080d-43e0-aad3-376501c8541b'],
-      k: 4,
-      min_relevance: 0.5
+      appset_id: appID
     }),
     signal: ctrl.value.signal,
     onmessage(event) {
@@ -175,7 +177,6 @@ const scrollToBottom = () => {
     ) {
       messagesDiv.value.scrollTop = messagesDiv.value.scrollHeight
     }
-    messagesDiv.value.scrollTop = messagesDiv.value.scrollHeight
   }
 }
 
@@ -189,20 +190,17 @@ onUnmounted(() => {
 
 <style scoped>
 .chat-container {
-  border: 1px solid #ccc;
-  padding: 10px;
-  border-radius: 5px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
   display: flex;
   flex-direction: column;
-  height: 95%;
+  height: 100%;
 }
 
 .messages-container {
   flex: 1;
   overflow-y: auto;
   text-align: left;
-  margin-bottom: 10px;
+
+  max-height: 100%; /* 确保子组件不超过父组件 */
 }
 
 /* 自定义滚动条样式 */

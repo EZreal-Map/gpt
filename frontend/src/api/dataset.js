@@ -101,20 +101,20 @@ export const getDocumentChunksAxios = (documentID) =>
   request.get(`/dataset/${documentID}/chunks`)
 
 // 通过 ID 更新chunk
-export const putEditChunkByIDAxios = (databaseID, { page_content, chunk_id }) =>
-  request.put(
-    `/dataset/${databaseID}/edit-chunk`,
-    { page_content },
-    { params: { chunk_id } }
-  )
+// export const putEditChunkByIDAxios = (databaseID, { page_content, chunk_id }) =>
+//   request.put(
+//     `/dataset/${databaseID}/edit-chunk`,
+//     { page_content },
+//     { params: { chunk_id } }
+//   )
 
-export const deleteChunkAxios = (databaseID, { article_id, chunk_id }) =>
-  request.delete(`/dataset/${databaseID}/delete-chunk`, {
-    params: {
-      article_id,
-      chunk_id
-    }
-  })
+// export const deleteChunkAxios = (databaseID, { article_id, chunk_id }) =>
+//   request.delete(`/retrieval/${databaseID}/delete-chunk`, {
+//     params: {
+//       article_id,
+//       chunk_id
+//     }
+//   })
 
 // IDDataBaseHitTestingView.vue
 // 获取指定一条文档的所有chunks

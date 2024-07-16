@@ -188,7 +188,8 @@ async def move_temp_files_to_dataset(dataset_id: UUID,
         )
 
     vectorstore = load_vectorstore(dataset_id)
-    vectorstore.add_documents(documents) # 向向量数据库中添加文档数据,返回ids
+    vectorstore.add_documents(documents) # 向向量数据库中添加文档数据
+
     return {
             "message": "Files moved successfully", 
             "filename_info": filename_info, 
@@ -232,8 +233,8 @@ async def get_chunks_by_article_id(article_id: UUID):
 
     # 使用 `where` 参数进行过滤  metadata.filename == article.name
     filename_chunks = vectorstore.get(where={"filename": article.name})
-    transform_filename_chunks = transform_data(filename_chunks,keys=["ids", "metadatas", "documents"])
-    transform_filename_chunks = sorted(transform_filename_chunks, key=lambda x: x['metadatas']['chunk_count'])
+    transform_filename_chunks = transform_data(filename_chunks, keep_keys=["ids", "metadatas", "documents"], new_keys=["id", "metadata", "page_content"])
+    transform_filename_chunks = sorted(transform_filename_chunks, key=lambda x: x['metadata']['chunk_count'])
     
     return transform_filename_chunks
 
@@ -308,87 +309,87 @@ async def download_file(article_id: UUID):
     response.headers["Access-Control-Expose-Headers"] = "Content-Disposition"
     return response
 
-# 删除指定chunk块，通过 chunk_id
-@dataset_router.delete("/{dataset_id}/delete-chunk", tags=["dataset"])
-async def delete_chunk_by_id(dataset_id: UUID, 
-                             article_id: UUID = Query(None, description="Article ID for updating chunk_sum_num"),
-                             chunk_id: UUID = Query(..., description="Chunk ID to delete")
-                             ):
-    """
-    删除特定数据集（dataset_id）中的一个分块数据（chunk）
-    同时更新相关的文章（article）的 chunk_sum_num 属性
-    :param dataset_id: 数据集ID
-    :param chunk_id: 分块数据ID
-    :param article_id: 文章ID，用于更新 chunk_sum_num
-    :return: 操作结果消息
-    """
-    # 加载向量数据库
-    vectorstore = load_vectorstore(dataset_id)
+# # 删除指定chunk块，通过 chunk_id
+# @dataset_router.delete("/{dataset_id}/delete-chunk", tags=["dataset"])
+# async def delete_chunk_by_id(dataset_id: UUID, 
+#                              article_id: UUID = Query(None, description="Article ID for updating chunk_sum_num"),
+#                              metadata_id: UUID = Query(..., description="Chunk metadata_id to delete")
+#                              ):
+#     """
+#     删除特定数据集（dataset_id）中的一个分块数据（chunk）
+#     同时更新相关的文章（article）的 chunk_sum_num 属性
+#     :param dataset_id: 数据集ID
+#     :param metadata_id: 分块数据ID
+#     :param article_id: 文章ID，用于更新 chunk_sum_num
+#     :return: 操作结果消息
+#     """
+#     # 加载向量数据库
+#     vectorstore = load_vectorstore(dataset_id)
 
-    # 将 UUID 对象转换为字符串类型的 ID
-    str_chunk_id = str(chunk_id)
-    # 查询并获取指定 chunk
-    chunk = vectorstore.get(ids=[str_chunk_id])
+#     # 将 UUID 对象转换为字符串类型的 ID
+#     str_metadata_id = str(metadata_id)
+#    # 查询并获取指定 chunk
+#     chunk = vectorstore.get(where={"document_metadata_id": str_metadata_id})
 
-    if not chunk["ids"]:
-        raise HTTPException(status_code=404, detail=f"Chunk with ID {chunk_id} not found in dataset {dataset_id}")
+#     if not chunk["ids"]:
+#         raise HTTPException(status_code=404, detail=f"Chunk with ID {metadata_id} not found in dataset {dataset_id}")
 
-    # 删除指定的 chunk
-    vectorstore.delete(str_chunk_id)
+#     # 删除指定的 chunk
+#     vectorstore.delete(ids=chunk["ids"])
 
-    # 更新文章的 chunk_sum_num
-    if article_id:
-        article = await Article.get_or_none(id=article_id)
-        if article:
-            article.chunk_sum_num -= 1
-            await article.save()
+#     # 更新文章的 chunk_sum_num
+#     if article_id:
+#         article = await Article.get_or_none(id=article_id)
+#         if article:
+#             article.chunk_sum_num -= 1
+#             await article.save()
 
-    return {
-        "message": f"Chunk {chunk_id} has been deleted from dataset {dataset_id}",
-        "chunk_deleted": chunk,
-        "article.chunk_sum_num": article.chunk_sum_num
-    }
+#     return {
+#         "message": f"Chunk {chunk["ids"]} has been deleted from dataset {dataset_id}",
+#         "chunk_deleted": chunk,
+#         "article.chunk_sum_num": article.chunk_sum_num
+#     }
 
 
-class EditChunkDocument(BaseModel):
-    page_content: str
+# class EditChunkDocument(BaseModel):
+#     page_content: str
 
-@dataset_router.put("/{dataset_id}/edit-chunk", tags=["dataset"])
-async def edit_chunk_by_id(dataset_id: UUID, 
-                           edit_chunk: EditChunkDocument,
-                           chunk_id: UUID = Query(..., description="Chunk ID to edit")
-                           ):
-    """
-    编辑特定数据集（dataset_id）中的一个分块数据（chunk）
-    修改其文档内容
-    :param dataset_id: 数据集ID
-    :param chunk_id: 分块数据ID
-    :param edit_chunk: 包含新内容的请求体
-    :return: 操作结果消息
-    """
-    # 加载向量数据库
-    vectorstore = load_vectorstore(dataset_id)
+# @dataset_router.put("/{dataset_id}/edit-chunk", tags=["dataset"])
+# async def edit_chunk_by_id(dataset_id: UUID, 
+#                            edit_chunk: EditChunkDocument,
+#                            chunk_id: UUID = Query(..., description="Chunk ID to edit")
+#                            ):
+#     """
+#     编辑特定数据集（dataset_id）中的一个分块数据（chunk）
+#     修改其文档内容
+#     :param dataset_id: 数据集ID
+#     :param chunk_id: 分块数据ID
+#     :param edit_chunk: 包含新内容的请求体
+#     :return: 操作结果消息
+#     """
+#     # 加载向量数据库
+#     vectorstore = load_vectorstore(dataset_id)
 
-    # 将 UUID 对象转换为字符串类型的 ID
-    str_chunk_id = str(chunk_id)
+#     # 将 UUID 对象转换为字符串类型的 ID
+#     str_chunk_id = str(chunk_id)
 
-    # 查询并获取指定 chunk
-    chunk = vectorstore.get(ids=[str_chunk_id])
-    print("chunk",chunk)
-    if not chunk["ids"]:
-        raise HTTPException(status_code=404, detail=f"Chunk with ID {chunk_id} not found in dataset {dataset_id}")
-    # 创建一个新的 Document 实例
-    page_content = edit_chunk.page_content
-    metadata = chunk['metadatas'][0]
-    metadata["chunk_word_count"] = len(edit_chunk.page_content)
-    update_chunk_document = Document(page_content=page_content, metadata=metadata)
-    # 修改指定的 chunk 内容
-    vectorstore.update_documents(ids=[str_chunk_id], documents=[update_chunk_document])
+#     # 查询并获取指定 chunk
+#     chunk = vectorstore.get(ids=[str_chunk_id])
+#     print("chunk",chunk)
+#     if not chunk["ids"]:
+#         raise HTTPException(status_code=404, detail=f"Chunk with ID {chunk_id} not found in dataset {dataset_id}")
+#     # 创建一个新的 Document 实例
+#     page_content = edit_chunk.page_content
+#     metadata = chunk['metadatas'][0]
+#     metadata["chunk_word_count"] = len(edit_chunk.page_content)
+#     update_chunk_document = Document(page_content=page_content, metadata=metadata)
+#     # 修改指定的 chunk 内容
+#     vectorstore.update_documents(ids=[str_chunk_id], documents=[update_chunk_document])
 
-    return {
-        "message": f"Chunk {chunk_id} has been edited in dataset {dataset_id}",
-        "updated_chunk": update_chunk_document
-    }
+#     return {
+#         "message": f"Chunk {chunk_id} has been edited in dataset {dataset_id}",
+#         "updated_chunk": update_chunk_document
+#     }
 
 # QueryTestHistory有关的路由
 # 定义 Pydantic 模型用于请求体验证

@@ -40,7 +40,8 @@ packages
 
 document
 temp
-vectorstore
+# vectorstore
+chroma-data
 
 # 临时测试文件
 server2.py

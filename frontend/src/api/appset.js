@@ -8,10 +8,12 @@ export const getAppsetsAxios = () => request.get('/appset/')
 export const postAppsetAxios = ({ name, description, privacy }) =>
   request.post('/appset/', { name, description, privacy })
 
-// DataBaseBox.vue
+// DataBaseBox.vue / APPIDConfiguration.vue（putAppsetAxios）
 // 更新一条应用集合数据
-export const putAppsetAxios = (appID, { name, description, privacy }) =>
-  request.put(`/appset/${appID}`, { name, description, privacy })
+export const putAppsetAxios = (
+  appID,
+  { name, description, privacy, ...rest }
+) => request.put(`/appset/${appID}`, { name, description, privacy, ...rest })
 
 // 删除一条应用集合数据
 export const deleteAppsetAxios = (appID) => request.delete(`/appset/${appID}`)

@@ -3,17 +3,19 @@ from langchain_text_splitters import CharacterTextSplitter
 from langchain_core.documents import Document
 from langchain_chroma import Chroma
 from langchain_openai import OpenAIEmbeddings
-from typing import List
 from uuid import UUID
 import uuid
 from pathlib import Path
 import os
 import chromadb
 from fastapi import HTTPException
+from chromadb.config import Settings
+from dotenv import load_dotenv
+load_dotenv()
 
-client = chromadb.HttpClient(host='localhost', port=9786)
+client = chromadb.HttpClient(host='localhost', port=9786, settings=Settings(anonymized_telemetry=False))
 
-def PDF_to_documents(file_paths: List, chunk_size: int=500, chunk_overlap=100, separator="", dataset_id="") -> List[Document]:
+def PDF_to_documents(file_paths: list, chunk_size: int=500, chunk_overlap=100, separator="", dataset_id="") -> list[Document]:
     """
     Load and split PDF files into documents.
     :param file_paths: a list of file paths
@@ -45,6 +47,8 @@ def PDF_to_documents(file_paths: List, chunk_size: int=500, chunk_overlap=100, s
         
         count = 1
         chunk_sum_num = len(temp_documents)
+
+        article_id = str(uuid.uuid4()) # 注意：放在循环外，所有分块共享一个article_id
         
         for document in temp_documents:
             document.metadata["filename"] = filename
@@ -53,7 +57,7 @@ def PDF_to_documents(file_paths: List, chunk_size: int=500, chunk_overlap=100, s
             document.metadata["total_word_count"] = total_word_count  # 添加总字数到metadata
             document.metadata["chunk_word_count"] = len(document.page_content)  # 添加分块字数到metadata
             document.metadata["document_metadata_id"] = str(uuid.uuid4())  # 添加document_id到metadata
-            document.metadata["article_id"] = str(uuid.uuid4())  # 添加article_id到metadata
+            document.metadata["article_id"] = article_id  # 添加article_id到metadata
             document.metadata["dataset_id"] = str(dataset_id)  # 添加dataset_id到metadata
             count += 1
         
@@ -63,11 +67,11 @@ def PDF_to_documents(file_paths: List, chunk_size: int=500, chunk_overlap=100, s
 
 
 # 获取 vectorstore 的存储路径
-vectorstore_dir = Path("static/vectorstore")
-def get_vectorstore_path(dataset_id: UUID) -> str:
-    vectorstore_path = vectorstore_dir / str(dataset_id)
-    vectorstore_path.mkdir(parents=True, exist_ok=True)
-    return str(vectorstore_path)
+# vectorstore_dir = Path("static/vectorstore")
+# def get_vectorstore_path(dataset_id: UUID) -> str:
+#     vectorstore_path = vectorstore_dir / str(dataset_id)
+#     vectorstore_path.mkdir(parents=True, exist_ok=True)
+#     return str(vectorstore_path)
 
 # def load_vectorstore(dataset_id: UUID, embedding_function = OpenAIEmbeddings()) -> Chroma:
 #     vectorstore_path = get_vectorstore_path(dataset_id)
@@ -86,20 +90,20 @@ def load_vectorstore(dataset_id: UUID, embedding_function = OpenAIEmbeddings()) 
     
     vectorstore = Chroma(
         client=client,
-        collection_name=dataset_id,
+        collection_name=str(dataset_id),
         embedding_function=embedding_function,
     )
     return vectorstore
 
 
 
-def transform_data(data, keys):
+def transform_data(data, keep_keys, new_keys=None):
     """
     将字典数组转换为数组字典，保留指定的key。
     
     参数:
     data (dict): 包含多个数组的字典，每个数组表示某种类型的数据。
-    keys (list): 要保留的key的列表。
+    keep_keys (list): 要保留的key的列表。
 
     返回:
     list: 转换后的数组字典。
@@ -109,20 +113,22 @@ def transform_data(data, keys):
 
     # 获取数据的长度
     # 默认使用第一个key的长度
-    keyword = keys[0]
+    keyword = keep_keys[0]
     data_length = len(data[keyword])
     
     # 遍历索引并填充新的数据结构
     for i in range(data_length):
-        entry = {key: data[key][i] for key in keys if key in data}
+        entry = {new_keys[index]: data[key][i] for index, key in enumerate(keep_keys) if key in data}
         transformed_data.append(entry)
 
     return transformed_data
 
 
-def retrieval_similarity_search(dataset_ids: List[UUID], query: str, k: int, min_relevance: float):
+def retrieval_similarity_search(dataset_ids: list[UUID], query: str, k: int, min_relevance: float):
+    print(k)
+    if k < 1:
+        return []
     all_docs_and_scores = []
-
     for dataset_id in dataset_ids:
         try:
             # 加载向量数据库
@@ -130,9 +136,9 @@ def retrieval_similarity_search(dataset_ids: List[UUID], query: str, k: int, min
             docs_and_scores = vectorstore.similarity_search_with_score(query=query, k=k)
             all_docs_and_scores.extend([
                 {
-                    "document": doc,
+                    **document.__dict__,
                     "score": 1 - score
-                } for doc, score in docs_and_scores if 1 - score >= min_relevance
+                } for document, score in docs_and_scores if 1 - score >= min_relevance
             ])
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))

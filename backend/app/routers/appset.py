@@ -2,7 +2,7 @@
 from fastapi import APIRouter, HTTPException
 from models.models import APPSet, DataSet
 from enum import Enum
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Optional, Union
 from uuid import UUID
 from datetime import datetime
@@ -20,6 +20,17 @@ class APPSetPydantic(BaseModel):
     name: str
     description: Optional[str] = None
     privacy: PrivacyEnum
+class APPSetPydantic(BaseModel):
+    name: str = Field(..., title="名称", description="APPSet 的名称")
+    description: Optional[str] = Field(None, title="描述", description="APPSet 的描述信息")
+    privacy: PrivacyEnum = Field(..., title="隐私设置", description="APPSet 的隐私设置，可以为 '私有' 或 '公开'")
+    model_name: Optional[str] = Field(None, title="模型名称", description="大语言模型的名称")
+    model_temperature: Optional[float] = Field(None, title="模型温度", description="大语言模型的温度参数")
+    model_max_tokens: Optional[int] = Field(None, title="最大令牌数", description="大语言模型生成的最大令牌数")
+    model_history_window_length: Optional[int] = Field(None, title="历史窗口长度", description="大语言模型的历史窗口长度")
+    prompt_template: Optional[str] = Field(None, title="提示词模板", description="用于大语言模型的提示词模板")
+    citation_limit: Optional[int] = Field(None, title="引用限制", description="关联知识库的引用限制")
+    min_relevance: Optional[float] = Field(None, title="最小相关性", description="关联知识库的最小相关性")
 
 # 定义 Pydantic 模型用于响应体验证
 class APPSetResponse(BaseModel):
@@ -28,6 +39,7 @@ class APPSetResponse(BaseModel):
     description: Optional[str]
     privacy: str
     created_at: Union[str, datetime]
+
 
 # 获取所有 APPSet 的路由
 @appset_router.get("/", response_model=List[APPSetResponse], tags=["appset"])
@@ -44,14 +56,18 @@ async def get_all_datasets():
 
 # 创建新的 APPSet 的路由
 @appset_router.post("/", response_model=APPSetResponse, tags=["appset"])
-async def create_dataset(appset: APPSetPydantic):
+async def create_dataset(create_appset: APPSetPydantic):
     """
     创建一个新的APP应用数据集
     :param appset: APP应用数据集信息
     :return: 创建的APP应用数据记录
     """
-    # 创建新的数据集记录
-    new_appset = await APPSet.create(**appset.dict())
+
+    # 过滤掉值为 None 的键值对
+    filtered_dict = {key: value for key, value in create_appset.dict().items() if value is not None}
+
+    # 创建新的数据集记录c
+    new_appset = await APPSet.create(**filtered_dict)
 
     # 创建新的文件夹
     # folder_path = f"static/document/{new_appset.id}"
@@ -60,7 +76,7 @@ async def create_dataset(appset: APPSetPydantic):
     return new_appset
 
 # 更新指定 APPSet 的路由
-@appset_router.put("/{appset_id}", response_model=APPSetResponse, tags=["appset"])
+@appset_router.put("/{appset_id}", tags=["appset"])
 async def update_dataset(appset_id: str, appset_update: APPSetPydantic):
     """
     更新一个数据集
@@ -72,6 +88,7 @@ async def update_dataset(appset_id: str, appset_update: APPSetPydantic):
     if not appset:
         raise HTTPException(status_code=404, detail="Appset not found")
     update_data = appset_update.dict(exclude_unset=True)
+    print(update_data)
     for key, value in update_data.items():
         setattr(appset, key, value)
     await appset.save()
@@ -96,7 +113,7 @@ async def delete_dataset(appset_id: UUID):
         }
 
 # 获取指定{appset_id} APPSet 的路由
-@appset_router.get("/{appset_id}", response_model=APPSetResponse, tags=["appset"])
+@appset_router.get("/{appset_id}", tags=["appset"])
 async def update_dataset(appset_id: str):
     """
     更新一个数据集
@@ -158,3 +175,4 @@ async def get_appset_datasets(appset_id: str):
     for dataset in datasets:
         dataset.created_at = dataset.created_at.strftime('%Y-%m-%d %H:%M:%S')
     return datasets
+

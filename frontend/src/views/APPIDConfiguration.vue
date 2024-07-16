@@ -2,109 +2,126 @@
   <div class="APPIDConfiguration">
     <div class="left-block">
       <!-- 左侧内容 -->
-      <DataBaseBox
-        v-for="item in appset"
-        :key="item.id"
-        :appID="item.id"
-        v-model:name="item.name"
-        v-model:description="item.description"
-        v-model:privacy="item.privacy"
-        :fetchDataSet="fetchAppSet"
-        :putDatasetAxios="putAppsetAxios"
-        :deleteDatasetAxios="deleteAppsetAxios"
-        :created_at="item.created_at"
-      ></DataBaseBox>
-      <div class="content-title">
-        <p>应用配置</p>
-        <el-button type="primary">保存并预览</el-button>
+      <div class="database-box">
+        <DataBaseBox
+          :key="appset.id"
+          :appID="appset.id"
+          v-model:name="appset.name"
+          v-model:description="appset.description"
+          v-model:privacy="appset.privacy"
+          :fetchDataSet="fetchAppSet"
+          :putDatasetAxios="putAppsetAxios"
+          :deleteDatasetAxios="deleteAppsetAxios"
+          :created_at="appset.created_at"
+        ></DataBaseBox>
       </div>
+      <div class="left-block-setting">
+        <div class="left-block-setting-title">
+          <p>应用配置</p>
+          <el-button type="primary" @click="updateDataSet">保存</el-button>
+        </div>
 
-      <div class="content">
-        <div class="ai-setting">
-          <div class="title">AI 配置</div>
-          <button class="ai-setting-button">
-            <!-- <img src="gpt-icon.png" alt="GPT Icon" class="icon" /> -->
-            gpt-3.5-turbo
-          </button>
-        </div>
-        <div class="template-prompt">
-          <div class="title">提示词</div>
-          <el-input
-            class="template-prompt-input"
-            v-model="templatePromptInput"
-            style="width: 240px"
-            :autosize="{ minRows: 6, maxRows: 10 }"
-            type="textarea"
-            placeholder="Please input"
-          />
-        </div>
-        <div class="connect-datasets">
-          <div class="title">关联知识库</div>
-          <div class="connect-datasets-button-set">
-            <button @click="showSelectDataSetsModal">选择</button>
-            <button>参数</button>
-          </div>
-        </div>
-        <div class="grid-container-small">
-          <div
-            class="grid-item-small"
-            v-for="(dataset, index) in selectDataSets"
-            :key="index"
-          >
-            <el-tooltip
-              class="box-item"
-              effect="light"
-              :content="dataset.name"
-              placement="top"
+        <div class="left-block-setting-content">
+          <div class="ai-setting">
+            <div class="title">AI 配置</div>
+            <button
+              class="ai-setting-button"
+              @click="isShowAISettingsModal = true"
             >
-              <div class="name">{{ dataset.name }}</div>
-            </el-tooltip>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 选择知识库弹窗 -->
-    <div v-if="connectDataSetModalShow" class="modal">
-      <div class="modal-content">
-        <div class="modal-header">
-          <span class="modal-title">选择知识库</span>
-          <span class="close" @click="closeModal">&times;</span>
-        </div>
-        <div class="selected-datasets" v-show="tempSelectDataSets.length > 0">
-          已选的知识库
-        </div>
-        <div class="grid-container">
-          <div
-            class="grid-item"
-            v-for="(dataset, index) in tempSelectDataSets"
-            :key="index"
-          >
-            <span
-              class="close-icon"
-              @click="removeFromSelectedDatasets(dataset)"
-              >&times;</span
-            >
-            <el-tooltip
-              class="box-item"
-              effect="light"
-              :content="dataset.name"
-              placement="top"
-            >
-              <div class="name">{{ dataset.name }}</div>
-            </el-tooltip>
-
-            <div class="created-at">{{ dataset.created_at.split(' ')[0] }}</div>
-          </div>
-        </div>
-        <div class="datasets">
-          知识库集合
-          <div class="grid-container">
+              {{ selectModelName }}
+            </button>
+            <!-- 设置模型参数弹窗 -->
             <div
-              class="grid-item cursor-pointer"
-              v-for="(dataset, index) in dataSets"
+              class="document-modal-background"
+              v-show="isShowAISettingsModal"
+            >
+              <div class="document-modal">
+                <!-- 弹窗 title -->
+                <div class="document-modal-header">
+                  <span class="document-modal-title">大语言模型配置</span>
+                  <span
+                    class="document-model-close"
+                    @click="isShowAISettingsModal = false"
+                    >&times;</span
+                  >
+                </div>
+                <!-- 弹窗 content -->
+                <div class="ai-setting-model-content">
+                  <!-- 模型的选择 -->
+                  <div>
+                    <div class="left">AI 模型</div>
+                    <div class="right">
+                      <el-select v-model="selectModelName" placeholder="请选择">
+                        <el-option
+                          v-for="model in modelList"
+                          :key="model.name"
+                          :label="model.name"
+                          :value="model.name"
+                        ></el-option>
+                      </el-select>
+                    </div>
+                  </div>
+                  <!-- 模型的温度设置 -->
+                  <div>
+                    <div class="left">温度</div>
+                    <div class="right">
+                      <el-slider
+                        v-model="selectModelTemperature"
+                        :min="0"
+                        :max="200"
+                        :format-tooltip="formatTooltip"
+                      />
+                    </div>
+                  </div>
+                  <!-- 模型的上限回复（max_token)设置 -->
+                  <div>
+                    <div class="left">最大上限回复</div>
+                    <div class="right">
+                      <el-slider
+                        v-model="selectModelMaxTokenResponse"
+                        :min="0"
+                        :max="modelMaxToken"
+                      />
+                    </div>
+                  </div>
+                  <!-- 模型上下文记录聊天记录数量（history_window_length） -->
+                  <div>
+                    <div class="left">聊天记录数量</div>
+                    <div class="right">
+                      <el-slider
+                        v-model="selectModelHistoryWindowLength"
+                        :min="0"
+                        :max="30"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="template-prompt">
+            <div class="title">提示词</div>
+            <el-input
+              class="template-prompt-input"
+              style="width: 240px"
+              :autosize="{ minRows: 6, maxRows: 10 }"
+              type="textarea"
+              :placeholder="templatePromptInputPlaceHolder"
+              v-model="templatePromptInput"
+            />
+          </div>
+          <div class="connect-datasets">
+            <div class="title">关联知识库</div>
+            <div class="connect-datasets-button-set">
+              <button @click="showSelectDataSetsModal">选择</button>
+              <button @click="showRetrievalSettingModel = true">参数</button>
+            </div>
+          </div>
+          <div class="grid-container-small">
+            <div
+              class="grid-item-small"
+              v-for="(dataset, index) in selectDataSets"
               :key="index"
-              @click="addToSelectedDatasets(dataset)"
             >
               <el-tooltip
                 class="box-item"
@@ -114,29 +131,106 @@
               >
                 <div class="name">{{ dataset.name }}</div>
               </el-tooltip>
-              <div class="created-at">
-                {{ dataset.created_at.split(' ')[0] }}
-              </div>
             </div>
           </div>
         </div>
-        <div class="button-group">
-          <div></div>
-          <button class="save-button" @click="finishSelectionAndSubmit">
-            完成
-          </button>
+
+        <!-- 设置检索参数的弹出窗口 -->
+        <RetrievalParameterModal
+          v-model:showRetrievalSettingModel="showRetrievalSettingModel"
+          v-model:searchMode="searchMode"
+          v-model:citationLimit="citationLimit"
+          :minRelevance="minRelevance"
+          :questionOptimization="questionOptimization"
+          :finishRetrievalParameterModalSelectionAndSubmit="
+            finishRetrievalParameterModalSelectionAndSubmit
+          "
+        ></RetrievalParameterModal>
+
+        <!-- 选择知识库弹窗 -->
+        <div v-if="connectDataSetModalShow" class="modal">
+          <div class="modal-content">
+            <div class="modal-header">
+              <span class="modal-title">选择知识库</span>
+              <span class="close" @click="closeModal">&times;</span>
+            </div>
+            <div
+              class="selected-datasets"
+              v-show="tempSelectDataSets.length > 0"
+            >
+              已选的知识库
+            </div>
+            <div class="grid-container">
+              <div
+                class="grid-item"
+                v-for="(dataset, index) in tempSelectDataSets"
+                :key="index"
+              >
+                <span
+                  class="close-icon"
+                  @click="removeFromSelectedDatasets(dataset)"
+                  >&times;</span
+                >
+                <el-tooltip
+                  class="box-item"
+                  effect="light"
+                  :content="dataset.name"
+                  placement="top"
+                >
+                  <div class="name">{{ dataset.name }}</div>
+                </el-tooltip>
+
+                <div class="created-at">
+                  {{ dataset.created_at.split(' ')[0] }}
+                </div>
+              </div>
+            </div>
+            <div class="datasets">
+              知识库集合
+              <div class="grid-container">
+                <div
+                  class="grid-item cursor-pointer"
+                  v-for="(dataset, index) in filteredDataSets"
+                  :key="index"
+                  @click="addToSelectedDatasets(dataset)"
+                >
+                  <el-tooltip
+                    class="box-item"
+                    effect="light"
+                    :content="dataset.name"
+                    placement="top"
+                  >
+                    <div class="name">{{ dataset.name }}</div>
+                  </el-tooltip>
+                  <div class="created-at">
+                    {{ dataset.created_at.split(' ')[0] }}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="button-group">
+              <div></div>
+              <button
+                class="save-button"
+                @click="finishDataSetSelectionAndSubmit"
+              >
+                完成
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
 
     <div class="right-block">
       <!-- 右侧内容 -->
+      <ChatComponent></ChatComponent>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import {
   getAppsetAxios,
@@ -146,6 +240,10 @@ import {
   getAppsetDatasetsAxios
 } from '@/api/appset'
 import { getDatasetsAxios } from '@/api/dataset.js'
+import DataBaseBox from '@/components/DataBaseBox.vue'
+import RetrievalParameterModal from '@/components/RetrievalParameterModal.vue'
+import ChatComponent from '@/components/ChatComponent.vue'
+import { ElMessage } from 'element-plus'
 
 // 使用 useRoute 获取路由信息
 const route = useRoute()
@@ -156,16 +254,94 @@ const appset = ref('')
 const fetchAppSet = async () => {
   const response = await getAppsetAxios(appID)
   console.log(response)
-  appset.value = [response.data]
+  appset.value = response.data
+  selectModelName.value = appset.value.model_name
+  selectModelMaxTokenResponse.value = appset.value.model_max_tokens
+  selectModelTemperature.value = appset.value.model_temperature * 100
+  selectModelHistoryWindowLength.value =
+    appset.value.model_history_window_length
+  templatePromptInput.value = appset.value.template_prompt
+  // searchMode.value = appset.value.search_mode
+  citationLimit.value = appset.value.citation_limit
+  minRelevance.value = appset.value.min_relevance * 100
+  // questionOptimization.value = appset.value.question_optimization
 }
 
+// 更新数据集操作
+const updateDataSet = async () => {
+  const data = {
+    name: appset.value.name,
+    description: appset.value.description,
+    privacy: appset.value.privacy,
+    model_name: selectModelName.value,
+    model_max_tokens: selectModelMaxTokenResponse.value,
+    model_temperature: selectModelTemperature.value / 100,
+    model_history_window_length: selectModelHistoryWindowLength.value,
+    prompt_template: templatePromptInput.value,
+    citation_limit: citationLimit.value,
+    min_relevance: minRelevance.value / 100
+  }
+
+  const response = await putAppsetAxios(appID, data)
+  ElMessage.success('参数保存成功')
+  console.log('保存描述', response)
+}
+
+// 模型参数相关数据
+const modelList = [
+  { name: 'gpt-3.5-turbo', max_tokens: 16385 },
+  { name: 'gpt-4o', max_tokens: 128000 },
+  { name: 'gpt-4-turbo', max_tokes: 128000 }
+]
+const isShowAISettingsModal = ref(false)
+const selectModelName = ref('')
+const selectModelTemperature = ref(100)
+const formatTooltip = (value) => {
+  return (value / 100).toFixed(2)
+}
+const selectModelMaxTokenResponse = ref(8000)
+const modelMaxToken = computed(() => {
+  const foundModel = modelList.find(
+    (model) => model.name === appset.value.model_name
+  )
+  return foundModel ? foundModel.max_tokens : 128000
+})
+const selectModelHistoryWindowLength = ref(10)
+
+// 检索参数弹出框有关参数
+const showRetrievalSettingModel = ref(false)
+const searchMode = ref('语义检索')
+const citationLimit = ref(4)
+const minRelevance = ref(50)
+const questionOptimization = ref('×')
+const finishRetrievalParameterModalSelectionAndSubmit = (
+  loaclSearchMode,
+  loaclCitationLimit,
+  loaclMinRelevance,
+  localQuestionOptimization
+) => {
+  showRetrievalSettingModel.value = false
+  // 更新前端数据
+  searchMode.value = loaclSearchMode
+  citationLimit.value = loaclCitationLimit
+  minRelevance.value = loaclMinRelevance
+  questionOptimization.value = localQuestionOptimization
+  // 更新后端数据库数据
+  updateDataSet()
+}
+// 数据定义完成，可以开始获取数据
 fetchAppSet()
 
+// 提示词模板相关数据
 const templatePromptInput = ref('')
+const templatePromptInputPlaceHolder = `你是一个用于回答问题的助手。请使用以下检索到的上下文片段来回答问题。
+如果你不知道答案，只需说你不知道。最好用markdown格式回答问题。
+问题: {question}
+上下文: {context}
+回答:`
 
 // 控制关联知识库 弹窗相关数据
 const connectDataSetModalShow = ref(false)
-
 const dataSets = ref([])
 const selectDataSets = ref([])
 const tempSelectDataSets = ref([])
@@ -188,7 +364,7 @@ const fetchSelectDataSets = async () => {
 }
 fetchSelectDataSets()
 
-// 点击选择按钮时调用的方法
+// 点击选择(知识库)按钮时调用的方法
 const showSelectDataSetsModal = () => {
   connectDataSetModalShow.value = true
   // 拷贝已选知识库数组（不可直接赋值，否则会直接影响原数组）
@@ -196,6 +372,16 @@ const showSelectDataSetsModal = () => {
     ...item
   }))
 }
+
+// 计算属性：过滤掉已选知识库的数据集
+const filteredDataSets = computed(() => {
+  return dataSets.value.filter(
+    (dataSet) =>
+      !tempSelectDataSets.value.some(
+        (selectedSet) => selectedSet.id === dataSet.id
+      )
+  )
+})
 
 // 关闭模态框并清空已选知识库
 const closeModal = () => {
@@ -220,7 +406,7 @@ const removeFromSelectedDatasets = (datasetToRemove) => {
 }
 
 // 选择结束并提交的函数，打印已选知识库并清空数组
-const finishSelectionAndSubmit = async () => {
+const finishDataSetSelectionAndSubmit = async () => {
   console.log('已选择的知识库：', tempSelectDataSets.value)
   const datasetIds = tempSelectDataSets.value.map((item) => item.id)
   const response = await selectAppsetDatasetsAxios(appID, datasetIds)
@@ -228,49 +414,50 @@ const finishSelectionAndSubmit = async () => {
   // selectDataSets.value = [] // 清空已选知识库数组
   fetchSelectDataSets()
   connectDataSetModalShow.value = false
+  ElMessage.success('知识库关联成功')
 }
 </script>
 
 <style scoped>
 .APPIDConfiguration {
   display: flex;
+  height: calc(100vh - 140px);
+  align-items: stretch;
 }
 
 .left-block {
   flex: 0 0 30%; /* 左侧占30% */
   padding: 10px;
-  border: 1px solid #111;
+  display: flex;
+  flex-direction: column;
 }
 
-.right-block {
-  flex: 1; /* 使左右两块均分容器 */
-  padding: 10px;
+.left-block-setting {
+  margin-top: 20px;
+  border: 1px solid #808080;
+  border-radius: 8px;
+  overflow-y: auto;
+  height: 100%;
 }
 
-.right-block {
-  background-color: #e0e0e0; /* 可根据需要调整背景色 */
-}
-
-.left-block .content-title {
+.left-block .left-block-setting-title {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin: 20px 20px;
+  margin: 20px 20px 0;
 }
 
-.left-block .content-title p {
+.left-block .left-block-setting-title p {
   font-size: 20px;
   font-weight: bold;
-  margin: 0; /* 移除段落的默认外边距 */
+  margin: 0; /*移除段落的默认外边距 */
 }
-
-.left-block .content {
+.left-block .left-block-setting-content {
   margin: 5px;
-  border: 1px solid #ccc;
-  padding: 20px 10px;
+  padding: 10px;
 }
 
-.left-block .content .ai-setting {
+.left-block .left-block-setting-content .ai-setting {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -302,7 +489,81 @@ const finishSelectionAndSubmit = async () => {
   border-color: #0056b3; /* 修改边框颜色 */
 }
 
-.left-block .content .template-prompt {
+/* ai-setting 模型弹窗有关 */
+/* 全屏模态弹窗 */
+.ai-setting .document-modal-background {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5); /* 半透明黑色背景 */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1;
+}
+
+.ai-setting .document-modal {
+  background-color: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  width: 100%;
+  position: relative;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  width: 400px; /* 调整弹窗宽度 */
+  max-width: 90%; /* 限制最大宽度 */
+  max-height: 90%; /* 限制最大高度 */
+}
+
+.ai-setting .document-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #e5e5e5;
+  padding-bottom: 10px;
+  margin-bottom: 10px;
+}
+
+.ai-setting .document-modal-title {
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.ai-setting .document-modal-content {
+  width: 100%;
+  margin-top: 10px;
+  text-align: left;
+}
+
+.ai-setting .document-model-close {
+  font-size: 24px;
+  cursor: pointer;
+}
+
+.ai-setting .ai-setting-model-content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ai-setting .ai-setting-model-content > div {
+  display: flex;
+  align-items: center;
+}
+
+.ai-setting .ai-setting-model-content .left {
+  flex: 0 0 120px; /* 调整标签的宽度 */
+  color: #1f212a;
+  text-align: center;
+  padding-right: 10px;
+}
+
+.ai-setting .ai-setting-model-content .right {
+  flex: 1;
+}
+
+.left-block .left-block-setting-content .template-prompt {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -315,7 +576,7 @@ const finishSelectionAndSubmit = async () => {
 }
 
 .template-prompt .template-prompt-input {
-  margin: 20px;
+  margin: 10px 20px;
   flex: 1;
 }
 
@@ -413,7 +674,7 @@ const finishSelectionAndSubmit = async () => {
 /* 使用 Grid 布局展示知识库集合 */
 .grid-container {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 10px;
   margin-top: 10px;
 }
@@ -462,7 +723,7 @@ const finishSelectionAndSubmit = async () => {
 
 .grid-container-small {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 10px;
   margin-top: 10px;
 }
@@ -471,12 +732,20 @@ const finishSelectionAndSubmit = async () => {
   background-color: #fefefe;
   border: 2px solid #ddd;
   border-radius: 5px;
-  padding: 10px;
+  padding: 20px 10px;
   text-align: left;
   font-size: 12px;
   height: 20px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.right-block {
+  flex: 1; /* 使左右两块均分容器 */
+  padding: 10px 20px;
+  border: 1px solid #808080;
+  border-radius: 8px;
+  margin: 10px;
 }
 </style>

@@ -110,16 +110,16 @@ async def similarity_search(search_request: SearchRequest = Body(...)):
         search_request.k, 
         search_request.min_relevance
     )
-
+    print(docs_and_scores)
     return docs_and_scores
 
 class EditChunkDocument(BaseModel):
     page_content: str
 
 @retrieval_router.put("/{dataset_id}/edit-chunk", tags=["retrieval"])
-async def edit_chunk_by_metadata_id(dataset_id: UUID, 
+async def edit_chunk_by_metadata_id(dataset_id: str, 
                            edit_chunk: EditChunkDocument,
-                           metadata_id: UUID = Query(..., description="Chunk document metadata ID to edit")
+                           metadata_id: str = Query(..., description="Chunk document metadata ID to edit")
                            ):
     """
     编辑特定数据集（dataset_id）中的一个分块数据（chunk）
@@ -132,13 +132,10 @@ async def edit_chunk_by_metadata_id(dataset_id: UUID,
     # 加载向量数据库
     vectorstore = load_vectorstore(dataset_id)
 
-    # 将 UUID 对象转换为字符串类型的 ID
-    str_metadata_id = str(metadata_id)
-
     # 查询并获取指定 chunk
-    chunk = vectorstore.get(where={"document_metadata_id": str_metadata_id})
+    chunk = vectorstore.get(where={"document_metadata_id": metadata_id})
 
-    # print("chunk",chunk)
+    print("chunk",chunk)
     if not chunk["ids"]:
         raise HTTPException(status_code=404, detail=f"Chunk with ID {metadata_id} not found in dataset {dataset_id}")
     # 创建一个新的 Document 实例
@@ -155,30 +152,28 @@ async def edit_chunk_by_metadata_id(dataset_id: UUID,
     }
 
 
-# 删除指定chunk块，通过 chunk_id
+# 删除指定chunk块，通过 metadata_id
 @retrieval_router.delete("/{dataset_id}/delete-chunk", tags=["retrieval"])
-async def delete_chunk_by_metadata_id(dataset_id: UUID, 
-                             article_id: UUID = Query(None, description="Article ID for updating chunk_sum_num"),
-                             metadata_id: UUID = Query(..., description="Chunk document metadata ID to delete")
+async def delete_chunk_by_metadata_id(dataset_id: str, 
+                             article_id: UUID = Query(..., description="Article ID for updating chunk_sum_num"),
+                             metadata_id: str = Query(..., description="Chunk document metadata ID to delete")
                              ):
     """
     删除特定数据集（dataset_id）中的一个分块数据（chunk）
     同时更新相关的文章（article）的 chunk_sum_num 属性
     :param dataset_id: 数据集ID
-    :param chunk_id: 分块数据ID
+    :param metadata_id: 分块数据 metadata ID
     :param article_id: 文章ID，用于更新 chunk_sum_num
     :return: 操作结果消息
     """
     # 加载向量数据库
     vectorstore = load_vectorstore(dataset_id)
 
-    # 将 UUID 对象转换为字符串类型的 ID
-    str_metadata_id = str(metadata_id)
     # 查询并获取指定 chunk
-    chunk = vectorstore.get(where={"document_metadata_id": str_metadata_id})
+    chunk = vectorstore.get(where={"document_metadata_id": metadata_id})
     
     if not chunk["ids"]:
-        raise HTTPException(status_code=404, detail=f"Chunk with ID {str_metadata_id} not found in dataset {dataset_id}")
+        raise HTTPException(status_code=404, detail=f"Chunk with ID {metadata_id} not found in dataset {dataset_id}")
 
     # 删除指定的 chunk
     vectorstore.delete(chunk["ids"])
@@ -193,5 +188,5 @@ async def delete_chunk_by_metadata_id(dataset_id: UUID,
     return {
         "message": f"Chunk {chunk['ids']} has been deleted from dataset {dataset_id}",
         "chunk_deleted": chunk,
-        "article.chunk_sum_num": article.chunk_sum_num
+        "chunk_sum_num_updated": article.chunk_sum_num
     }

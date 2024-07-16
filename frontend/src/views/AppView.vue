@@ -197,7 +197,7 @@ const createNewAPPBaseHandle = () => {
 
 .main-container {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
   grid-gap: 20px;
   overflow: auto; /* 当内容溢出时显示滚动条 */
 }
