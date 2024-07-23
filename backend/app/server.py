@@ -7,6 +7,8 @@ from config import settings
 from routers.retrieval import retrieval_router
 from routers.dataset import dataset_router
 from routers.appset import appset_router
+from routers.chatset import chatset_router
+from routers.chat_history import chat_history_router
 from fastapi.middleware.cors import CORSMiddleware
 
 # 加载 .env 文件中的环境变量
@@ -33,13 +35,16 @@ register_tortoise(
     # add_exception_handlers=True,  # 生产环境不要开，会泄露调试信息
 )
 
+# 聊天响应 有关路由
 app.include_router(chat_router, prefix="/chat")
-
 # 知识库 有关路由
 app.include_router(retrieval_router, prefix="/retrieval")
 app.include_router(dataset_router, prefix="/dataset")
 # 应用 有关路由
 app.include_router(appset_router, prefix="/appset")
+# 聊天记录 有关路由
+app.include_router(chatset_router, prefix="/chatset")
+app.include_router(chat_history_router, prefix="/chat_history")
 
 if __name__ == "__main__":
     import uvicorn

@@ -3,9 +3,9 @@ from tortoise import BaseDBAsyncClient
 
 async def upgrade(db: BaseDBAsyncClient) -> str:
     return """
-        ALTER TABLE `appset` MODIFY COLUMN `model_max_tokens` INT;"""
+        ALTER TABLE `chatset` ADD `name` VARCHAR(255) NOT NULL  DEFAULT '';"""
 
 
 async def downgrade(db: BaseDBAsyncClient) -> str:
     return """
-        ALTER TABLE `appset` MODIFY COLUMN `model_max_tokens` INT NOT NULL;"""
+        ALTER TABLE `chatset` DROP COLUMN `name`;"""

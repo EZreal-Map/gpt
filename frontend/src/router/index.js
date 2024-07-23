@@ -1,18 +1,22 @@
 import { createRouter, createWebHistory } from 'vue-router'
-
+// 3个一级路由 应用/知识库/账户
 import AppView from '@/views/AppView.vue'
 import DataBaseFolderView from '@/views/DataBaseFolderView.vue'
 import AccountView from '@/views/AccountView.vue'
+
+// 二级路由：知识库的子路由
 import IDDataBaseRouterView from '@/views/IDDataBaseRouterView.vue'
 import IDDataBaseDocumentView from '@/views/IDDataBaseDocumentView.vue'
 import IDDataBaseHitTestingView from '@/views/IDDataBaseHitTestingView.vue'
 import IDDataBaseDocumentChunkView from '@/views/IDDataBaseDocumentChunkView.vue'
 import IDDataBaseUpdateDocumentView from '@/views/IDDataBaseUpdateDocumentView.vue'
 
+// 二级路由：应用的子路由
 import APPIDRouterView from '@/views/APPIDRouterView.vue'
 import APPIDConfiguration from '@/views/APPIDConfiguration.vue'
-import APPIDChat from '@/views/APPIDChat.vue'
-import APPIDPublish from '@/views/APPIDPublish.vue'
+
+// 一级路由：聊天
+import ChatView from '@/views/ChatView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -37,16 +41,6 @@ const router = createRouter({
           path: 'configuration',
           name: 'id-app-configuration',
           component: APPIDConfiguration
-        },
-        {
-          path: 'chat-test',
-          name: 'id-app-chat',
-          component: APPIDChat
-        },
-        {
-          path: 'publish',
-          name: 'id-app-publish',
-          component: APPIDPublish
         }
       ]
     },
@@ -89,7 +83,13 @@ const router = createRouter({
         }
       ]
     },
-    { path: '/account', name: 'account', component: AccountView }
+    { path: '/account', name: 'account', component: AccountView },
+    {
+      path: '/chat/:appID',
+      name: 'chat',
+      component: ChatView,
+      meta: { noLayout: true }
+    }
   ]
 })
 

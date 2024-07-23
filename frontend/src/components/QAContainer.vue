@@ -25,12 +25,32 @@
           {{ filename }}
         </a>
         <div class="citation-buttons">
-          <span class="citation-document" @click="isShowDocumentModal = true"
+          <span class="citation-document" @click="showDocumentModalFunction"
             >{{ documentCount }}条引用</span
           >
-          <span class="citation-context">{{ contextCount }}条上下文</span>
-          <span class="citation-execute-time">{{ executeTime }}s</span>
-          <span class="citation-more">查看详情</span>
+          <span class="citation-context" @click="isShowChatHistoryModel = true"
+            >{{ contextCount }}条上下文</span
+          >
+          <span class="citation-execute-time">{{ parentExecuteTime }}s</span>
+          <span class="citation-more"
+            ><el-dropdown>
+              <span class="el-dropdown-link">
+                <el-icon size="20"><MoreFilled /></el-icon>
+              </span>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item @click="copyToClipboard(answer)"
+                    ><el-icon><CopyDocument /></el-icon
+                  ></el-dropdown-item>
+                  <el-dropdown-item @click="deleteChatHistory"
+                    ><el-icon><Delete /></el-icon
+                  ></el-dropdown-item>
+                  <el-dropdown-item @click="retryAnswer"
+                    ><el-icon><Refresh /></el-icon
+                  ></el-dropdown-item>
+                </el-dropdown-menu>
+              </template> </el-dropdown
+          ></span>
         </div>
         <!-- <div>{{ citeDocument }}</div> -->
       </div>
@@ -47,7 +67,7 @@
           >&times;</span
         >
       </div>
-      <!-- 此处替换为具体的文档引用内容 -->
+      <!-- 具体的文档内容 -->
       <div class="document-modal-content">
         <el-scrollbar height="500px">
           <RetrievalList
@@ -69,23 +89,94 @@
     v-model:currentItem="currentItem"
     v-model:documentChunks="documentChunks"
   ></EditChunkModal>
+
+  <!-- 历史上下文有关的弹窗 -->
+  <div class="document-modal-background" v-show="isShowChatHistoryModel">
+    <!-- 弹窗内容待定 -->
+    <div class="document-modal">
+      <div class="document-modal-header">
+        <span class="document-modal-title">历史上下文详情</span>
+        <span
+          class="document-model-close"
+          @click="isShowChatHistoryModel = false"
+          >&times;</span
+        >
+      </div>
+      <!-- 具体的文档内容 -->
+      <div class="document-modal-content">
+        <el-scrollbar height="500px">
+          <div v-for="(chat, index) in contextHistory" :key="index">
+            <div class="question-chunk-modal">
+              <div class="label">Human</div>
+              <div class="content">{{ chat.question }}</div>
+            </div>
+            <div class="answer-chunk-modal">
+              <div class="label">AI</div>
+              <div class="content">{{ chat.answer }}</div>
+            </div>
+          </div>
+        </el-scrollbar>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { MdPreview } from 'md-editor-v3'
 import 'md-editor-v3/lib/preview.css'
+import RetrievalList from '@/components/RetrievalList.vue'
+import { addChatHistoryAxios, deleteChatHistoryAxios } from '@/api/chatset.js'
+import { useRoute, useRouter } from 'vue-router'
+import {
+  MoreFilled,
+  CopyDocument,
+  Delete,
+  Refresh
+} from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 
+// 跳转路由
+const router = useRouter()
+// 使用 useRoute 获取路由信息
+const appID = useRoute().params.appID
+const chatID = useRoute().query.chatID
 // defineProps 接收父组件传递的数据
 const props = defineProps({
+  id: String,
   question: String,
   answer: String,
   citeDocument: Array,
-  isConnecting: Boolean
+  isConnecting: Boolean,
+  contextHistory: Array,
+  parentExecuteTime: {
+    type: Number,
+    default: 0
+  },
+  isTestMode: { type: Boolean, default: false },
+  fetchChatSetsData: {
+    type: Function,
+    default: () => {
+      console.log('Function fetchChatSetsData is null')
+    }
+  },
+  updateNewChatSetName: {
+    type: Function,
+    default: () => {
+      console.log('Function updateNewChatSetName is null')
+    }
+  },
+  messages: Object,
+  sendMessage: Function
 })
 
 // 用于向父组件发出事件
-const emits = defineEmits(['update:citeDocument'])
+const emits = defineEmits([
+  'update:citeDocument',
+  'update:messages',
+  'update:id',
+  'update:parentExecuteTime'
+])
 
 // 创建一个本地的 <引用列表> 中间媒介，实现爷孙组件通信
 const documentChunks = ref([])
@@ -95,6 +186,7 @@ watch(
   documentChunks,
   (newChunks) => {
     console.log('更新 citeDocument:', newChunks)
+    console.log('citeDocument:', props.citeDocument)
     emits('update:citeDocument', newChunks)
   },
   { deep: true }
@@ -110,12 +202,53 @@ const uniqueFilenames = computed(() => {
 
 // 使用 computed 属性计算 引用的document数量
 const documentCount = computed(() => props.citeDocument.length)
+// 使用 computed 属性计算 上下文数量
+const contextCount = computed(() => props.contextHistory.length)
 
 // 计算连接时间
 const startTime = ref(0)
-const executeTime = ref('0.00')
+
 // 是否有第一个文字加载完成
 const isloading = ref(true)
+
+const addChatHistory = async (execute_time) => {
+  console.log('处理时间props.parentExecuteTime', props.parentExecuteTime)
+  const response = await addChatHistoryAxios({
+    appset_id: appID,
+    chat_id: chatID,
+    question: props.question,
+    answer: props.answer,
+    cite_documents: props.citeDocument,
+    context_histories: props.contextHistory,
+    execute_time: execute_time,
+    is_test_mode: props.isTestMode
+  })
+  console.log('已经添加一条历史记录')
+
+  // 保存 messages 里面的 id，用于后面的删除操作
+  emits('update:id', response.data.chat_history_id)
+
+  if (response.data.chat_set_mode === 'new_chat_set') {
+    console.log('进入new-chat-set')
+    // 聊天列表添加新填的聊天记录，使用默认的名字 (new chat)
+    await props.fetchChatSetsData() // 调用父亲的父亲的方法，刷新聊天列表
+
+    // 传入第一个历史对话记录，为对话取一个名字
+    // 调用父亲的父亲的方法，更新名字
+    await props.updateNewChatSetName(
+      response.data.chat_set_id,
+      props.question,
+      props.answer
+    )
+
+    // 路由跳转到新建的chatID去
+    router.replace({
+      name: 'chat',
+      params: { appID: appID },
+      query: { chatID: response.data.chat_set_id }
+    })
+  }
+}
 
 watch(
   () => props.isConnecting,
@@ -127,9 +260,12 @@ watch(
     } else {
       if (startTime.value !== 0) {
         const elapsedTime = Date.now() - startTime.value
-        executeTime.value = (elapsedTime / 1000).toFixed(2)
+        const execute_time = parseFloat((elapsedTime / 1000).toFixed(2))
+        emits('update:parentExecuteTime', execute_time)
         startTime.value = 0
-        console.log('结束计时', executeTime.value)
+
+        // 回答完毕，添加一条问答历史记录
+        addChatHistory(execute_time)
       }
     }
   },
@@ -148,6 +284,11 @@ watch(
 
 // 引用有关弹窗 documentModal
 const isShowDocumentModal = ref(false)
+// const citeDocuments = ref('')
+const showDocumentModalFunction = () => {
+  isShowDocumentModal.value = true
+  // citeDocuments
+}
 
 // 编辑文档的窗口
 const showEditModal = ref(false)
@@ -161,8 +302,72 @@ const editBox = (item) => {
   showEditModal.value = true
 }
 
-// 计算上下文数量
-const contextCount = 8
+// 历史上下文的弹窗 chatHistoryModal
+const isShowChatHistoryModel = ref(false)
+
+// 更多按钮
+// 复制功能
+const copyToClipboard = async (textToCopy) => {
+  try {
+    // navigator clipboard 需要https等安全上下文
+    if (navigator.clipboard && window.isSecureContext) {
+      // navigator clipboard 向剪贴板写文本
+      navigator.clipboard.writeText(textToCopy)
+    } else {
+      // 保证在非https下，复制功能也可以正常使用（使用弃用的execCommand接口
+      // 创建textarea
+      let textArea = document.createElement('textarea')
+      textArea.value = textToCopy
+      // 使text area不在viewport，同时设置不可见
+      textArea.style.position = 'absolute'
+      textArea.style.opacity = 0
+      textArea.style.left = '-999999px'
+      textArea.style.top = '-999999px'
+      document.body.appendChild(textArea)
+      textArea.focus()
+      textArea.select()
+      new Promise((res, rej) => {
+        // 执行复制命令并移除文本框
+        document.execCommand('copy') ? res() : rej()
+        textArea.remove()
+      })
+    }
+    ElMessage.success('复制成功')
+  } catch (err) {
+    console.error('复制失败:', err)
+  }
+}
+
+// 删除功能
+const deleteChatHistory = async () => {
+  ElMessageBox.confirm('确认删除这条历史记录吗？', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消'
+  })
+    .then(async () => {
+      await deleteChatHistoryAxios({ chat_history_id: props.id })
+      const newMessages = props.messages.filter(
+        (message) => message.id !== props.id
+      )
+      emits('update:messages', newMessages)
+      ElMessage.success('删除成功')
+    })
+    .catch(() => {
+      ElMessage.info('已取消删除')
+    })
+}
+
+// 重新回答功能
+const retryAnswer = async () => {
+  // 先删除这条对话
+  await deleteChatHistoryAxios({ chat_history_id: props.id })
+  const newMessages = props.messages.filter(
+    (message) => message.id !== props.id
+  )
+  emits('update:messages', newMessages)
+  // 再使用同样的问题重新回答
+  props.sendMessage(props.question)
+}
 </script>
 
 <style scoped>
@@ -182,6 +387,7 @@ const contextCount = 8
   padding: 10px;
   border-radius: 5px;
   margin-bottom: 20px;
+  margin-right: 20px;
   white-space: pre-line; /* 保留换行符，显示多行文本*/
 }
 
@@ -194,6 +400,7 @@ const contextCount = 8
   padding: 4px;
   border-radius: 5px;
   margin-bottom: 20px;
+  margin-left: 20px;
 }
 
 .loading-box {
@@ -234,10 +441,13 @@ const contextCount = 8
 }
 
 .citation-buttons {
+  display: flex;
   margin: 0px 0px 10px 40px;
 }
 
-.citation-buttons span {
+.citation-buttons .citation-document,
+.citation-buttons .citation-context,
+.citation-buttons .citation-execute-time {
   padding: 5px 10px;
   border: 1px solid #ccc;
   border-radius: 5px;
@@ -253,10 +463,22 @@ const contextCount = 8
     color 0.1s ease; /* 添加过渡效果 */
 }
 
-.citation-buttons span:hover {
+.citation-buttons .citation-document:hover,
+.citation-buttons .citation-context:hover,
+.citation-buttons .citation-execute-time:hover {
   background-color: #4e8cff; /* 浅蓝色 */
   border-color: #4e8cff; /* 浅蓝色边框 */
   color: #fff; /* 白色文字 */
+}
+
+.citation-more {
+  display: flex;
+  justify-content: center; /* 将Flex容器内的项目水平居中。 */
+  align-items: center; /* 将Flex容器内的项目垂直居中。 */
+}
+
+.el-dropdown-link:focus-visible {
+  outline: unset; /* 去除默认的轮廓线 */
 }
 
 /* 全屏模态弹窗 */
@@ -307,5 +529,30 @@ const contextCount = 8
 .document-model-close {
   font-size: 24px;
   cursor: pointer;
+}
+
+.document-modal-content {
+  padding: 10px;
+  background-color: #fff;
+  font-family: Arial, sans-serif;
+}
+
+.question-chunk-modal,
+.answer-chunk-modal {
+  margin-bottom: 10px;
+  margin-right: 20px;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+}
+
+.document-modal-content .label {
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+.document-modal-content .content {
+  font-size: 14px;
+  line-height: 1.5;
 }
 </style>

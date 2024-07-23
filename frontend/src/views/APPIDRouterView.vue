@@ -31,7 +31,8 @@
 
 <script setup>
 import { useRoute, useRouter } from 'vue-router'
-import { Document, Aim } from '@element-plus/icons-vue'
+import IconTextButton from '@/components/IconTextButton.vue'
+import { Document, Link } from '@element-plus/icons-vue'
 import { computed } from 'vue'
 
 // 使用 useRoute 获取路由信息
@@ -52,15 +53,15 @@ const menuItems = [
     icon: Document
   },
   {
-    text: '立即对话',
-    route: { name: 'id-app-chat', params: { appID } },
-    icon: Aim
-  },
-  {
-    text: '发布应用',
-    route: { name: 'id-app-publish', params: { appID } },
-    icon: Aim
+    text: '发布链接',
+    route: { name: 'chat', params: { appID } },
+    icon: Link
   }
+  // {
+  //   text: '发布应用',
+  //   route: { name: 'id-app-publish', params: { appID } },
+  //   icon: Link
+  // }
 ]
 
 // const currentRoute = ref(route.path)

@@ -70,9 +70,9 @@
 import { ref, nextTick } from 'vue'
 import { DocumentCopy, MoreFilled, Lock, Unlock } from '@element-plus/icons-vue'
 import { useRoute, useRouter } from 'vue-router'
-
 import { ElMessage, ElMessageBox } from 'element-plus'
 
+// 是否是应用配置页面
 let appConfigurationView = false
 // 使用 useRoute 获取路由信息
 const route = useRoute()
@@ -105,8 +105,8 @@ const emits = defineEmits([
 // name 修改相关变量
 const isEditingName = ref(false)
 const editableName = ref(props.name)
-
 const nameInput = ref(null)
+
 // description 修改相关变量
 const isEditingDesctiption = ref(false)
 const editableDescription = ref(props.description)
@@ -326,6 +326,6 @@ const handleClickDelete = async () => {
 }
 
 .el-dropdown-link:focus-visible {
-  outline: unset;
+  outline: unset; /* 去除默认的轮廓线 */
 }
 </style>

@@ -1,51 +1,74 @@
 from langchain_openai import ChatOpenAI
-from langchain.prompts import ChatPromptTemplate
-from langserve import add_routes
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, HTTPException
 from itertools import count
 from sse_starlette import EventSourceResponse
 from pydantic import BaseModel, Field
 import json
 from utils.retrieval import retrieval_similarity_search
 from uuid import UUID
-from typing import Optional
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_core.documents import Document
-from models.models import APPSet
-
-
-
+from typing import  Optional, Dict, List
+from langchain_core.messages import HumanMessage, AIMessage
+from models.models import APPSet, ChatSet, ChatHistory 
+from utils.templates import retrieval_template, title_template
 
 from dotenv import load_dotenv
 # 加载 .env 文件中的环境变量
 load_dotenv()
+
+# 创建一个APIRouter实例
 chat_router = APIRouter()
 
-# prompt = ChatPromptTemplate.from_template("tell me a joke about {topic}")
-# add_routes(
-#     chat_router,
-#     prompt | model,
-#     path="/joke",
-# )
+async def get_recent_chat_histories(appset_id: str, chat_id: str, n: int) -> List[Dict[str, str]]:
+    """
+    查询指定 appset_id 和 chat_id 的最近 n 条 ChatHistory 记录，并提取 question 和 answer。
 
-
-# 使用 itertools 的 count 函数来生成自增的 id
-id_counter = count()
+    :param appset_id: APPSet 的 ID
+    :param chat_id: ChatSet 的 ID
+    :param n: 要查询的记录数量
+    :return: 包含 question 和 answer 的 JSON 格式列表
+    """
+    # 查询指定的 APPSet
+    appset = await APPSet.filter(id=appset_id).first()
+    if not appset:
+        raise HTTPException(status_code=404, detail="未找到指定的 APPSet")
+    
+    # 如果提供了 chat_id，使用对应的 ChatSet
+    if chat_id:
+        chat_set = await ChatSet.filter(id=chat_id, app_id=appset.id).first()
+        if not chat_set:
+            raise HTTPException(status_code=404, detail="未找到指定的 ChatSet")
+    else:
+        # 否则，使用默认的测试 ChatSet
+        chat_set = await ChatSet.filter(app_id=appset.id, is_test=True).first()
+        if not chat_set:
+            raise HTTPException(status_code=404, detail="未找到测试 ChatSet")
+    
+    # 查询最近 n 条 ChatHistory 记录
+    recent_histories = await ChatHistory.filter(chat_id=chat_set.id).order_by('-created_at').limit(n)
+    
+    # 提取 question 和 answer
+    qa_dict = [{"question": history.question, "answer": history.answer} for history in recent_histories]
+    
+    return qa_dict
 
 # 定义生成器函数以流式发送数据
 async def chat_streamer(
         request: Request, 
         query: str = "what color is the sky?", 
         retrieval_documents=None, 
+        context_history=None,
         model_params={"model": "gpt-3.5-turbo"}
         ):
     print("开始回答问题！！！！！！！！！")
     print(model_params)
-    print("开始回答问题！！！！！！！！！")
-    print(model_params)
+    # 使用 itertools 的 count 函数来生成自增的 id
+    id_counter = count()
+    # 模型：创建 ChatOpenAI 实例 
     model = ChatOpenAI(**model_params)
-    yield {"data": json.dumps(retrieval_documents, ensure_ascii=False), "event": "quotation", "id": -1}
+    if retrieval_documents:
+        yield {"data": json.dumps(retrieval_documents, ensure_ascii=False), "event": "quotation", "id": -1}
+    if context_history:
+        yield {"data": json.dumps(context_history, ensure_ascii=False), "event": "context_history", "id": -2}
     # 生成器函数，用于流式发送数据
     async for chunk in model.astream(query):
         print(chunk)
@@ -56,31 +79,16 @@ async def chat_streamer(
         data = json.dumps({"content": chunk.content, "id": chunk.id}, ensure_ascii=False)
         yield {"data": data, "event": "message", "id": id}
 
-# class QueryModel(BaseModel):
-#     query: str = "what color is the sky?"
-#     dataset_ids: Optional[list[UUID]] = None
-#     model_name: Optional[str] = Field(None, title="模型名称", description="大语言模型的名称")
-#     model_temperature: Optional[float] = Field(None, title="模型温度", description="大语言模型的温度参数")
-#     model_max_tokens: Optional[int] = Field(None, title="最大令牌数", description="大语言模型生成的最大令牌数")
-#     model_history_window_length: Optional[int] = Field(None, title="历史窗口长度", description="大语言模型的历史窗口长度")
-#     prompt_template: Optional[str] = Field(None, title="提示词模板", description="用于大语言模型的提示词模板")
-#     citation_limit: Optional[int] = Field(None, title="引用限制", description="关联知识库的引用限制")
-#     min_relevance: Optional[float] = Field(None, title="最小相关性", description="关联知识库的最小相关性")
+
 
 class QueryModel(BaseModel):
-    query: str = "what color is the sky?"
-    appset_id: UUID
-
-# @chat_router.post("/test", tags=["chat"])
-# async def chat_test(query_body: QueryModel):
-#     appset = await APPSet.get(id=query_body.appset_id).prefetch_related('datasets')
-#     appset = await APPSet.get(id=query_body.appset_id).prefetch_related('datasets')
-#     dataset_ids = [dataset.id for dataset in appset.datasets]
-#     return appset
+    query: str = Field("what color is the sky?", description="查询的问题")
+    appset_id: str = Field(..., description="APPSet的ID，确认模型参数与检索参数")
+    chat_id: str = Field(None, description="ChatSet的ID，可选, 用来查询历史对话上下文")
 
 # 创建一个FastAPI路由来处理流式响应
-@chat_router.post("/", tags=["chat"])
-async def chat(request: Request, query_body: QueryModel):
+@chat_router.post("", tags=["chat"])
+async def retrieval_chat(request: Request, query_body: QueryModel):
     # 通过appset_id 查询 appset 参数 / datasets_ids 参数
     appset = await APPSet.get(id=query_body.appset_id).prefetch_related('datasets')
     dataset_ids = [dataset.id for dataset in appset.datasets]
@@ -95,25 +103,57 @@ async def chat(request: Request, query_body: QueryModel):
     if appset.prompt_template:
         template = appset.prompt_template
     else:
-        template = "你是一个用于回答问题的助手。请使用以下检索到的上下文片段来回答问题。\n\
-            如果你不知道答案，只需说你不知道。最好用markdown格式回答问题。\n\
-            问题: {question}\n\
-            上下文: {context}\n\
-            回答:"
+        template = retrieval_template
 
     # 提取并拼接每个 document.page_content
     context = "\n\n".join(doc["page_content"] for doc in docs_and_scores)
-    retrieval_query = HumanMessage(content=template.format(question=query_body.query, context=context))
-    print(retrieval_query.content)
-
-    # HumanMessage 需要用 [ ] 包裹 起来
+    retrieval_context = HumanMessage(content=template.format(question=query_body.query, context=context))
+    print(retrieval_context.content)
+    # 使用 await 等待异步函数的执行完成
+    qa_dict = await get_recent_chat_histories(appset_id=query_body.appset_id, chat_id=query_body.chat_id, n=appset.model_history_window_length)
+    print("qa_dict:", qa_dict)
+    # 生成一个包含 HumanMessage 和 AIMessage 对象的列表
+    query = []
+    for qa in qa_dict:
+        query.append(HumanMessage(content=qa["question"]))
+        query.append(AIMessage(content=qa["answer"]))
+    print("history_context:", query)
+    query.append(retrieval_context)
+    
+    # 一定保证 prompt + max_tokens <= model_context (提问 + max_tokens <= 模型上下文)
     model_params = {
         "model": appset.model_name,
         "temperature": appset.model_temperature,
-        **({"max_tokens": appset.model_max_tokens} if appset.model_max_tokens is not None else {})
+        "max_tokens": appset.model_max_tokens,
     }
+
+    # 如果query只有一个 HumanMessage 需要用 [ ] 包裹 起来
     return EventSourceResponse(
         chat_streamer(request, 
-                      query=[retrieval_query], 
-                      retrieval_documents=docs_and_scores, 
+                      query=query, 
+                      retrieval_documents=docs_and_scores,
+                      context_history=qa_dict, 
                       model_params=model_params))
+
+class QAModel(BaseModel):
+    chat_id: str = Field(None, description="ChatSet的ID，可选, 用来更新chatset name")
+    question: str = Field("what color is the sky?", description="问题")
+    answer: str = Field("blue", description="回答")
+    
+# 创建一个FastAPI路由来处理流式响应, 传入新建的第一个QA对话，取一个标题名字
+@chat_router.post("/title", tags=["chat"])
+async def retrieval_chat(qa_body: QAModel):
+
+    template = title_template
+    query = template.format(question=qa_body.question, answer=qa_body.answer)
+    
+    model = ChatOpenAI()
+
+    title_name = model.invoke(query).content
+    # 查询指定的 ChatSet
+    chatset = await ChatSet.get_or_none(id=qa_body.chat_id)
+    if not chatset:
+        raise HTTPException(status_code=404, detail="未找到指定的 ChatSet")
+    chatset.name = title_name
+    await chatset.save()
+    return {"title_name": title_name, "chatset": chatset}

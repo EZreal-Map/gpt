@@ -79,8 +79,8 @@
                     <div class="right">
                       <el-slider
                         v-model="selectModelMaxTokenResponse"
-                        :min="0"
-                        :max="modelMaxToken"
+                        :min="1"
+                        :max="4096"
                       />
                     </div>
                   </div>
@@ -224,7 +224,13 @@
 
     <div class="right-block">
       <!-- 右侧内容 -->
-      <ChatComponent></ChatComponent>
+      <div class="right-block-title">
+        <p>调试预览</p>
+        <el-button type="primary" @click="cleanChatHistory">清除</el-button>
+      </div>
+      <div class="right-block-content" v-if="cleanRestart">
+        <ChatComponent :isTestMode="true"></ChatComponent>
+      </div>
     </div>
   </div>
 </template>
@@ -240,6 +246,7 @@ import {
   getAppsetDatasetsAxios
 } from '@/api/appset'
 import { getDatasetsAxios } from '@/api/dataset.js'
+import { cleanChatHistoryAxios } from '@/api/chatset.js'
 import DataBaseBox from '@/components/DataBaseBox.vue'
 import RetrievalParameterModal from '@/components/RetrievalParameterModal.vue'
 import ChatComponent from '@/components/ChatComponent.vue'
@@ -260,7 +267,7 @@ const fetchAppSet = async () => {
   selectModelTemperature.value = appset.value.model_temperature * 100
   selectModelHistoryWindowLength.value =
     appset.value.model_history_window_length
-  templatePromptInput.value = appset.value.template_prompt
+  templatePromptInput.value = appset.value.prompt_template
   // searchMode.value = appset.value.search_mode
   citationLimit.value = appset.value.citation_limit
   minRelevance.value = appset.value.min_relevance * 100
@@ -289,9 +296,9 @@ const updateDataSet = async () => {
 
 // 模型参数相关数据
 const modelList = [
-  { name: 'gpt-3.5-turbo', max_tokens: 16385 },
-  { name: 'gpt-4o', max_tokens: 128000 },
-  { name: 'gpt-4-turbo', max_tokes: 128000 }
+  { name: 'gpt-3.5-turbo', max_tokens: 4096, context_length: 16000 },
+  { name: 'gpt-4o', max_tokens: 4096, context_length: 128000 },
+  { name: 'gpt-4-turbo', max_tokens: 4096, context_length: 128000 }
 ]
 const isShowAISettingsModal = ref(false)
 const selectModelName = ref('')
@@ -299,14 +306,8 @@ const selectModelTemperature = ref(100)
 const formatTooltip = (value) => {
   return (value / 100).toFixed(2)
 }
-const selectModelMaxTokenResponse = ref(8000)
-const modelMaxToken = computed(() => {
-  const foundModel = modelList.find(
-    (model) => model.name === appset.value.model_name
-  )
-  return foundModel ? foundModel.max_tokens : 128000
-})
-const selectModelHistoryWindowLength = ref(10)
+const selectModelMaxTokenResponse = ref(4096)
+const selectModelHistoryWindowLength = ref(4)
 
 // 检索参数弹出框有关参数
 const showRetrievalSettingModel = ref(false)
@@ -333,12 +334,12 @@ const finishRetrievalParameterModalSelectionAndSubmit = (
 fetchAppSet()
 
 // 提示词模板相关数据
-const templatePromptInput = ref('')
-const templatePromptInputPlaceHolder = `你是一个用于回答问题的助手。请使用以下检索到的上下文片段来回答问题。
-如果你不知道答案，只需说你不知道。最好用markdown格式回答问题。
+const templatePromptInputPlaceHolder = `你是一个用于回答问题的助手。请认真参考检索到的上下文片段和历史对话来回答问题。
+只用生成回答是什么，不用重复生成问题。
 问题: {question}
-上下文: {context}
+检索到的上下文: {context}
 回答:`
+const templatePromptInput = ref(templatePromptInputPlaceHolder)
 
 // 控制关联知识库 弹窗相关数据
 const connectDataSetModalShow = ref(false)
@@ -416,6 +417,14 @@ const finishDataSetSelectionAndSubmit = async () => {
   connectDataSetModalShow.value = false
   ElMessage.success('知识库关联成功')
 }
+
+const cleanRestart = ref(true)
+const cleanChatHistory = async () => {
+  cleanRestart.value = false
+  await cleanChatHistoryAxios({ appset_id: appID })
+  ElMessage.success('聊天记录清除成功')
+  cleanRestart.value = true
+}
 </script>
 
 <style scoped>
@@ -440,6 +449,7 @@ const finishDataSetSelectionAndSubmit = async () => {
   height: 100%;
 }
 
+.right-block .right-block-title,
 .left-block .left-block-setting-title {
   display: flex;
   justify-content: space-between;
@@ -447,6 +457,7 @@ const finishDataSetSelectionAndSubmit = async () => {
   margin: 20px 20px 0;
 }
 
+.right-block .right-block-title,
 .left-block .left-block-setting-title p {
   font-size: 20px;
   font-weight: bold;
@@ -682,7 +693,7 @@ const finishDataSetSelectionAndSubmit = async () => {
 .grid-item {
   position: relative;
   background-color: #fefefe;
-  border: 2px solid #ddd;
+  border: 1px solid #ddd;
   border-radius: 5px;
   padding: 10px;
   text-align: left;
@@ -694,8 +705,8 @@ const finishDataSetSelectionAndSubmit = async () => {
 }
 .grid-item-small .name,
 .grid-item .name {
-  font-weight: bold;
   overflow: hidden;
+  color: #333;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -730,7 +741,7 @@ const finishDataSetSelectionAndSubmit = async () => {
 
 .grid-item-small {
   background-color: #fefefe;
-  border: 2px solid #ddd;
+  border: 1px solid #ddd;
   border-radius: 5px;
   padding: 20px 10px;
   text-align: left;
@@ -747,5 +758,16 @@ const finishDataSetSelectionAndSubmit = async () => {
   border: 1px solid #808080;
   border-radius: 8px;
   margin: 10px;
+  display: flex;
+  flex-direction: column;
+}
+
+.right-block .right-block-title {
+  border-bottom: 1.5px solid #eee;
+}
+
+.right-block .right-block-content {
+  flex-grow: 1;
+  overflow: auto;
 }
 </style>

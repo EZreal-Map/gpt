@@ -1,13 +1,20 @@
 <template>
   <div class="layout">
-    <el-container>
-      <el-aside> <LeftAside></LeftAside> </el-aside>
-      <el-main>
-        <div class="main-container">
-          <router-view></router-view>
-        </div>
-      </el-main>
-    </el-container>
+    <!-- 使用 router-view 插槽 -->
+    <router-view v-slot="{ Component, route }">
+      <!-- 如果当前路由没有 noLayout 元数据，则渲染公共布局 -->
+      <el-container v-if="!route.meta.noLayout">
+        <el-aside> <LeftAside></LeftAside> </el-aside>
+        <el-main>
+          <div class="main-container">
+            <!-- 动态渲染当前路由对应的组件 -->
+            <component :is="Component" />
+          </div>
+        </el-main>
+      </el-container>
+      <!-- 如果当前路由有 noLayout 元数据，则直接渲染当前路由对应的组件（为 /chat 独立布局） -->
+      <component v-else :is="Component" />
+    </router-view>
   </div>
 </template>
 

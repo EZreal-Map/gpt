@@ -1,6 +1,6 @@
 
 from fastapi import APIRouter, HTTPException
-from models.models import APPSet, DataSet
+from models.models import APPSet, DataSet, ChatSet
 from enum import Enum
 from pydantic import BaseModel, Field
 from typing import List, Optional, Union
@@ -69,9 +69,8 @@ async def create_dataset(create_appset: APPSetPydantic):
     # 创建新的数据集记录c
     new_appset = await APPSet.create(**filtered_dict)
 
-    # 创建新的文件夹
-    # folder_path = f"static/document/{new_appset.id}"
-    # os.makedirs(folder_path, exist_ok=True)
+    # 创建app的时候，同时创建一条 ChatSet 记录，is_test 设置为 True
+    await ChatSet.create(app_id=new_appset, is_test=True)
 
     return new_appset
 
@@ -114,7 +113,7 @@ async def delete_dataset(appset_id: UUID):
 
 # 获取指定{appset_id} APPSet 的路由
 @appset_router.get("/{appset_id}", tags=["appset"])
-async def update_dataset(appset_id: str):
+async def get_dataset(appset_id: str):
     """
     更新一个数据集
     :param appset_id: 数据集ID
@@ -175,4 +174,3 @@ async def get_appset_datasets(appset_id: str):
     for dataset in datasets:
         dataset.created_at = dataset.created_at.strftime('%Y-%m-%d %H:%M:%S')
     return datasets
-
