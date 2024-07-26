@@ -19,7 +19,10 @@
     <el-upload
       v-show="activeStep === 1"
       v-model:file-list="fileList"
-      :action="postUploadFileURLAxios()"
+      :action="postUploadFileURL()"
+      :headers="{
+        Authorization: `${tokenStore.token_type} ${tokenStore.access_token}`
+      }"
       multiple
       :before-remove="beforeRemove"
     >
@@ -41,17 +44,21 @@
         <div class="activeStep2-left-radio1">
           <span>训练模式</span>
           <el-radio-group v-model="radio1">
-            <el-radio value="1" size="large" border>直接拆分</el-radio>
-            <el-radio value="2" size="large" border disabled>问答拆分</el-radio>
+            <el-radio value="直接拆分" size="large" border>直接拆分</el-radio>
+            <el-radio value="问答拆分" size="large" border disabled
+              >问答拆分</el-radio
+            >
           </el-radio-group>
         </div>
         <div class="activeStep2-left-radio2">
           <span>处理方式</span>
           <el-radio-group v-model="radio2">
-            <el-radio value="1" size="large" border>自动 </el-radio>
-            <el-radio value="2" size="large" border>自定义规则</el-radio>
+            <el-radio value="自动" size="large" border>自动 </el-radio>
+            <el-radio value="自定义规则" size="large" border
+              >自定义规则</el-radio
+            >
           </el-radio-group>
-          <div v-show="radio2 === '2'" class="custom-rule-show">
+          <div v-show="radio2 === '自定义规则'" class="custom-rule-show">
             <el-form
               label-position="left"
               label-width="120x"
@@ -172,14 +179,16 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import 'element-plus/es/components/message/style/css'
 import 'element-plus/es/components/message-box/style/css'
 import { useRoute, useRouter } from 'vue-router'
+import { useTokenStore } from '@/stores/token.js'
 import {
-  postUploadFileURLAxios,
+  postUploadFileURL,
   postClearTempDirectoryAxios,
   deleteTempFileAxios,
   getTempPDFChunksAxios,
   postMoveTempFileToDatabaseAxios
 } from '@/api/dataset.js'
 const route = useRoute()
+const tokenStore = useTokenStore()
 // 从路由对象中提取 databaseID 参数
 const databaseID = route.params.databaseID
 
@@ -216,8 +225,8 @@ const beforeRemove = async (uploadFile) => {
 }
 
 // activeStep 等于 2 时数据处理操作
-const radio1 = ref('1')
-const radio2 = ref('1')
+const radio1 = ref('直接拆分')
+const radio2 = ref('自动')
 
 const radio2Form = ref({
   chunkLength: 500,

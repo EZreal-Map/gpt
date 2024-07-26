@@ -378,6 +378,12 @@ const showSelectDataSetsModal = () => {
 const filteredDataSets = computed(() => {
   return dataSets.value.filter(
     (dataSet) =>
+      // 知识库的判断条件：
+      // 1、知识库不是私有的
+      // 2、已选知识库数组中没有当前遍历的知识库
+      dataSet.privacy !== '私有' &&
+      //  some 检查数组中是否至少有一个元素满足条件
+      // 如果已选知识库数组中没有当前遍历的知识库，则返回 true
       !tempSelectDataSets.value.some(
         (selectedSet) => selectedSet.id === dataSet.id
       )
@@ -454,7 +460,7 @@ const cleanChatHistory = async () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin: 20px 20px 0;
+  margin: 20px;
 }
 
 .right-block .right-block-title,
@@ -463,9 +469,9 @@ const cleanChatHistory = async () => {
   font-weight: bold;
   margin: 0; /*移除段落的默认外边距 */
 }
+
 .left-block .left-block-setting-content {
-  margin: 5px;
-  padding: 10px;
+  padding: 0 10px;
 }
 
 .left-block .left-block-setting-content .ai-setting {
@@ -491,7 +497,7 @@ const cleanChatHistory = async () => {
   color: #333;
   cursor: pointer;
   transition: background-color 0.3s;
-  margin: 20px;
+  margin: 10px 20px;
   flex: 1;
 }
 
@@ -595,6 +601,7 @@ const cleanChatHistory = async () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-top: 10px;
 }
 
 .connect-datasets .title {
@@ -605,7 +612,7 @@ const cleanChatHistory = async () => {
 .connect-datasets-button-set {
   display: flex;
   align-items: center;
-  margin: 20px;
+  margin: 0 20px;
 }
 
 .connect-datasets-button-set button {
@@ -744,6 +751,7 @@ const cleanChatHistory = async () => {
   border: 1px solid #ddd;
   border-radius: 5px;
   padding: 20px 10px;
+  margin: 0px 5px;
   text-align: left;
   font-size: 12px;
   height: 20px;

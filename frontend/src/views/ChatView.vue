@@ -84,6 +84,13 @@
             </div>
           </el-tooltip>
         </div>
+        <el-tooltip content="回到管理界面" placement="bottom"
+          ><img
+            src="/avatar.png"
+            alt=""
+            class="avater-img"
+            @click="goBackAdminRouter"
+        /></el-tooltip>
       </div>
       <div class="chat-container-content">
         <ChatComponent
@@ -105,11 +112,45 @@ import { updateNewChatTitleAxios } from '@/api/chat.js'
 import { useSettingStore } from '@/stores/setting.js'
 import ChatSetBox from '@/components/ChatSetBox.vue'
 import ChatComponent from '@/components/ChatComponent.vue'
+import { getAppsetAxios } from '@/api/appset.js'
+import { checkIsLogin } from '@/api/user.js'
+import { ElMessage, ElMessageBox } from 'element-plus'
 
 // 跳转路由
 const router = useRouter()
 // 使用 useRoute 获取路由信息
 const appID = useRoute().params.appID
+// 侧边栏显示与隐藏逻辑
+const settingStore = useSettingStore() // 持久化存储 侧边栏状态
+
+const checkAppPrivacyStatus = async () => {
+  const response = await getAppsetAxios(appID)
+  console.log(response.data.privacy)
+  // 如果是私有的，需要判断是否登录
+  if (response.data.privacy === '私有') {
+    // 判断是否登录
+    const isLogin = await checkIsLogin()
+    if (isLogin) return
+    // 未登录，弹出提示登录框
+    // 关闭侧边栏显示
+    settingStore.isSidebarVisible = false
+    // 弹出提示登录框
+    ElMessageBox.confirm('你访问的应用已被设置为私有访问', {
+      confirmButtonText: '登录',
+      cancelButtonText: '取消访问'
+    })
+      .then(async () => {
+        // 跳转到登录界面
+        router.push({ name: 'account' })
+        ElMessage.info('请登录后再访问')
+      })
+      .catch(() => {
+        // 跳转到403页面
+        router.push({ name: 'forbidden' })
+      })
+  }
+}
+checkAppPrivacyStatus()
 
 const chatsets = ref('')
 const fetchChatSetsData = async () => {
@@ -131,8 +172,6 @@ const updateNewChatSetName = async (chat_id, question, answer) => {
   console.log('更新名字之后', chatsets.value[0].name)
 }
 
-// 侧边栏显示与隐藏逻辑
-const settingStore = useSettingStore() // 持久化存储 侧边栏状态
 // const isSidebarVisible = ref(false)
 // const toggleSidebar = () => {
 //   isSidebarVisible.value = !isSidebarVisible.value
@@ -205,6 +244,13 @@ const newChat = () => {
   routeToChat(appID)
   ChatComponentDOM.value.initParams()
 }
+
+const goBackAdminRouter = () => {
+  router.push({
+    name: 'id-app-configuration',
+    params: { appID: appID }
+  })
+}
 </script>
 
 <style scoped>
@@ -267,6 +313,18 @@ const newChat = () => {
 .button-group .button:hover {
   color: #333;
   background-color: #ececec;
+}
+
+.chat-container-title {
+  display: flex;
+  justify-content: space-between;
+}
+
+.avater-img {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  cursor: pointer;
 }
 
 .chat-container-content {

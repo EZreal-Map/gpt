@@ -19,8 +19,9 @@ export const deleteDatasetAxios = (databaseID) =>
   request.delete(`/dataset/${databaseID}`)
 
 // IDDataBaseUpdateDocumentView.vue
-// 上传文件url
-export const postUploadFileURLAxios = () => `${baseURL}/retrieval/uploadfiles/`
+// 上传文件url,这个也没有用到 request（axios）的方法,而是直接使用了 baseURL  上传文件
+// 还有一个是 sendMessage 也没有使用 request（axios）的方法  SSE
+export const postUploadFileURL = () => `${baseURL}/retrieval/uploadfiles/`
 
 // 清空临时文件夹
 export const postClearTempDirectoryAxios = () =>

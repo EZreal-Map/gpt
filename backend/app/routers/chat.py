@@ -5,11 +5,12 @@ from sse_starlette import EventSourceResponse
 from pydantic import BaseModel, Field
 import json
 from utils.retrieval import retrieval_similarity_search
-from uuid import UUID
-from typing import  Optional, Dict, List
+from typing import Dict, List
 from langchain_core.messages import HumanMessage, AIMessage
 from models.models import APPSet, ChatSet, ChatHistory 
 from utils.templates import retrieval_template, title_template
+from utils.authenticate import is_user_logged_in
+from routers.dataset import PrivacyEnum
 
 from dotenv import load_dotenv
 # 加载 .env 文件中的环境变量
@@ -18,12 +19,13 @@ load_dotenv()
 # 创建一个APIRouter实例
 chat_router = APIRouter()
 
-async def get_recent_chat_histories(appset_id: str, chat_id: str, n: int) -> List[Dict[str, str]]:
+async def get_recent_chat_histories(appset_id: str, chat_id: str, is_test_mode:bool, n: int) -> List[Dict[str, str]]:
     """
     查询指定 appset_id 和 chat_id 的最近 n 条 ChatHistory 记录，并提取 question 和 answer。
 
     :param appset_id: APPSet 的 ID
     :param chat_id: ChatSet 的 ID
+    :param is_test_mode: 是否为测试模式
     :param n: 要查询的记录数量
     :return: 包含 question 和 answer 的 JSON 格式列表
     """
@@ -32,17 +34,21 @@ async def get_recent_chat_histories(appset_id: str, chat_id: str, n: int) -> Lis
     if not appset:
         raise HTTPException(status_code=404, detail="未找到指定的 APPSet")
     
-    # 如果提供了 chat_id，使用对应的 ChatSet
-    if chat_id:
-        chat_set = await ChatSet.filter(id=chat_id, app_id=appset.id).first()
-        if not chat_set:
-            raise HTTPException(status_code=404, detail="未找到指定的 ChatSet")
-    else:
-        # 否则，使用默认的测试 ChatSet
+    # 如果是测试模式，使用默认的测试 ChatSet
+    if is_test_mode:
         chat_set = await ChatSet.filter(app_id=appset.id, is_test=True).first()
         if not chat_set:
             raise HTTPException(status_code=404, detail="未找到测试 ChatSet")
-    
+ 
+    else:
+        # 否则，判断 chat_id 是否存在
+        if chat_id: # 如果提供了 chat_id，代表有历史对话上下文
+            chat_set = await ChatSet.filter(id=chat_id, app_id=appset.id).first()
+            if not chat_set:
+                raise HTTPException(status_code=404, detail="未找到指定的 ChatSet")
+        else: # 如果没有提供 chat_id，代表是新建对话模式的第一句话，没有历史对话上下文
+            return []
+        
     # 查询最近 n 条 ChatHistory 记录
     recent_histories = await ChatHistory.filter(chat_id=chat_set.id).order_by('-created_at').limit(n)
     
@@ -85,14 +91,21 @@ class QueryModel(BaseModel):
     query: str = Field("what color is the sky?", description="查询的问题")
     appset_id: str = Field(..., description="APPSet的ID，确认模型参数与检索参数")
     chat_id: str = Field(None, description="ChatSet的ID，可选, 用来查询历史对话上下文")
+    is_test_mode: bool = Field(False, description="是否为测试模式")
 
 # 创建一个FastAPI路由来处理流式响应
 @chat_router.post("", tags=["chat"])
 async def retrieval_chat(request: Request, query_body: QueryModel):
     # 通过appset_id 查询 appset 参数 / datasets_ids 参数
     appset = await APPSet.get(id=query_body.appset_id).prefetch_related('datasets')
-    dataset_ids = [dataset.id for dataset in appset.datasets]
-    
+
+    if appset.privacy == PrivacyEnum.PRIVATE.value:
+        is_login = await is_user_logged_in(request)
+        if not is_login:
+            raise HTTPException(status_code=403, detail=f"禁止访问send_message")
+    # 获取 appset 中所有公开 知识库的 id
+    dataset_ids = [dataset.id for dataset in appset.datasets if dataset.privacy == PrivacyEnum.PUBLIC.value]
+    # 使用 retrieval_similarity_search 函数检索相关文档 检索能力
     docs_and_scores = retrieval_similarity_search(
         dataset_ids, 
         query_body.query, 
@@ -109,8 +122,12 @@ async def retrieval_chat(request: Request, query_body: QueryModel):
     context = "\n\n".join(doc["page_content"] for doc in docs_and_scores)
     retrieval_context = HumanMessage(content=template.format(question=query_body.query, context=context))
     print(retrieval_context.content)
+    # 获取最近的 n 条对话历史记录 上下文能力
     # 使用 await 等待异步函数的执行完成
-    qa_dict = await get_recent_chat_histories(appset_id=query_body.appset_id, chat_id=query_body.chat_id, n=appset.model_history_window_length)
+    qa_dict = await get_recent_chat_histories(appset_id=query_body.appset_id, 
+                                            chat_id=query_body.chat_id,
+                                            is_test_mode=query_body.is_test_mode,
+                                            n=appset.model_history_window_length)
     print("qa_dict:", qa_dict)
     # 生成一个包含 HumanMessage 和 AIMessage 对象的列表
     query = []

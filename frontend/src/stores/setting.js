@@ -4,8 +4,7 @@ import { defineStore } from 'pinia'
 export const useSettingStore = defineStore(
   'setting',
   () => {
-    // 直接赋值，没有返回函数的方式修改
-
+    // 变量 通过返回函数修改
     const isSidebarVisible = ref(false) // 侧边栏显示与隐藏逻辑
 
     // 通过返回函数的方式修改

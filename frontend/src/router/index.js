@@ -18,18 +18,36 @@ import APPIDConfiguration from '@/views/APPIDConfiguration.vue'
 // 一级路由：聊天
 import ChatView from '@/views/ChatView.vue'
 
+// 其他路由：403禁止访问、404未找到
+import ForbiddenView from '@/views/ForbiddenView.vue'
+import NotFoundView from '@/views/NotFoundView.vue'
+
+import { ElMessage } from 'element-plus'
+import { checkIsLogin } from '@/api/user.js'
+// 定义登录判断路由守卫
+const isLogin = async (to, from, next) => {
+  const isLogin = await checkIsLogin()
+  if (isLogin) {
+    next() // 已经登录，允许访问
+  } else {
+    ElMessage.warning('您没有权限访问此页面，请登录') // 显示警告消息
+    next({ name: 'account' }) // 未登录，重定向到首页或其他页面
+  }
+}
+
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
       path: '/',
-      redirect: '/app'
+      redirect: '/account'
     },
-    { path: '/app', name: 'app', component: AppView },
+    { path: '/app', name: 'app', component: AppView, beforeEnter: isLogin },
     {
       path: '/app/:appID',
       name: 'id-app',
       component: APPIDRouterView,
+      beforeEnter: isLogin,
       redirect: (to) => {
         return {
           name: 'id-app-configuration',
@@ -47,12 +65,14 @@ const router = createRouter({
     {
       path: '/database',
       name: 'database',
-      component: DataBaseFolderView
+      component: DataBaseFolderView,
+      beforeEnter: isLogin
     },
     {
       path: '/database/:databaseID',
       name: 'id-database',
       component: IDDataBaseRouterView,
+      beforeEnter: isLogin,
       // 重定向其子路径 /database/:databaseID/document
       redirect: (to) => {
         return {
@@ -88,6 +108,18 @@ const router = createRouter({
       path: '/chat/:appID',
       name: 'chat',
       component: ChatView,
+      meta: { noLayout: true }
+    },
+    {
+      path: '/403',
+      name: 'forbidden',
+      component: ForbiddenView,
+      meta: { noLayout: true }
+    },
+    {
+      path: '/404',
+      name: 'not-found',
+      component: NotFoundView,
       meta: { noLayout: true }
     }
   ]

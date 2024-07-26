@@ -6,7 +6,7 @@
       <el-container v-if="!route.meta.noLayout">
         <el-aside> <LeftAside></LeftAside> </el-aside>
         <el-main>
-          <div class="main-container">
+          <div class="app-main-container">
             <!-- 动态渲染当前路由对应的组件 -->
             <component :is="Component" />
           </div>
@@ -43,7 +43,7 @@ import LeftAside from '@/components/LeftAside.vue'
   padding: 0;
 }
 
-.main-container {
+.app-main-container {
   border-radius: 20px; /* 设置边框圆角 */
   padding: 20px; /* 内边距 */
   margin: 20px; /* 外边距 */

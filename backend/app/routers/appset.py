@@ -111,19 +111,20 @@ async def delete_dataset(appset_id: UUID):
         "appset": appset
         }
 
-# 获取指定{appset_id} APPSet 的路由
-@appset_router.get("/{appset_id}", tags=["appset"])
-async def get_dataset(appset_id: str):
-    """
-    更新一个数据集
-    :param appset_id: 数据集ID
-    :return: 查询后的数据库记录
-    """
-    appset = await APPSet.get_or_none(id=appset_id)
-    if not appset:
-        raise HTTPException(status_code=404, detail="Appset not found")
-    appset.created_at = appset.created_at.strftime('%Y-%m-%d %H:%M:%S')
-    return appset
+### 移到 appset_no_auth.py 中 ###
+# 获取指定{appset_id} APPSet 的路由  
+# @appset_router.get("/{appset_id}", tags=["appset"])
+# async def get_dataset(appset_id: str):
+#     """
+#     获取一个指定的APPSet
+#     :param appset_id: 数据集ID
+#     :return: 查询后的数据库记录
+#     """
+#     appset = await APPSet.get_or_none(id=appset_id)
+#     if not appset:
+#         raise HTTPException(status_code=404, detail="Appset not found")
+#     appset.created_at = appset.created_at.strftime('%Y-%m-%d %H:%M:%S')
+#     return appset
 
 
 # 更新或添加 APPSet 的 datasets 集合

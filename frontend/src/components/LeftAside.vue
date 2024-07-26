@@ -1,6 +1,8 @@
 <template>
-  <div class="aside-top-avater" @click="navigateToAccount">
-    <el-avatar :size="50" :src="userImageUrl" />
+  <div class="aside-top-avater-box" @click="navigateToAccount">
+    <el-tooltip content="登录" placement="bottom">
+      <img src="/avatar.png" alt="" class="avater-img" />
+    </el-tooltip>
   </div>
   <div class="aside-middle-menu">
     <IconTextButton
@@ -25,15 +27,14 @@ import IconTextButton from '@/components/IconTextButton.vue'
 import { Promotion, Coin, UserFilled } from '@element-plus/icons-vue'
 import { useRoute, useRouter } from 'vue-router'
 
-const userImageUrl = ref(
-  'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png'
-)
 const route = useRoute()
 const router = useRouter()
 const currentRoute = ref()
 
 const navigateToAccount = () => {
-  router.push('/account')
+  router.push({
+    name: 'account'
+  })
 }
 
 const menuItems = [
@@ -61,8 +62,14 @@ watch(
 </script>
 
 <style scoped>
-.aside-top-avater {
+.aside-top-avater-box {
   cursor: pointer;
   margin-bottom: 40px;
+}
+
+.avater-img {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
 }
 </style>

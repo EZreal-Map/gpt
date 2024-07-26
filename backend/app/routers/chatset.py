@@ -2,7 +2,7 @@
 from fastapi import APIRouter, HTTPException, Path, Query, Body
 from pydantic import BaseModel, Field
 from typing import  Optional, Dict, Any, List
-from models.models import APPSet, ChatSet, ChatHistory
+from models.models import APPSet, ChatSet, ChatHistory, Article
 
 
 # 创建一个APIRouter实例
@@ -60,7 +60,9 @@ async def add_test_chat_history(chat_history: ChatHistoryCreate):
             # 创建新的 ChatSet, is_test 设置为 False
             chat_set = await ChatSet.create(app_id=appset, is_test=False)
             chat_set_mode = "new_chat_set"
-    
+
+    # 引用记录(集合) 的序列化
+    cite_documents=[doc.to_dict() for doc in chat_history.cite_documents]
     # 创建对话历史记录
     new_chat_history = await ChatHistory.create(
         chat_id=chat_set,
@@ -68,11 +70,22 @@ async def add_test_chat_history(chat_history: ChatHistoryCreate):
         answer=chat_history.answer,
         # 直接将 CiteDocument 对象存入数据库，会导致类型不可序列化的错误
         # Convert each CiteDocument to dict before storing in the database
-        cite_documents=[doc.to_dict() for doc in chat_history.cite_documents],  
+        cite_documents=cite_documents,  
         context_histories=chat_history.context_histories,
         execute_time=chat_history.execute_time
     )
+
+    # 更新引用记录的 recall_count
+    for cite_document in cite_documents:
+        article = await Article.get_or_none(id=cite_document['metadata']['article_id'])
+        if not article:
+            raise HTTPException(status_code=404, detail="未找到指定的 Article")
+        article.recall_count += 1
+        await article.save()
+
     return {"chat_set_mode": chat_set_mode, "chat_set_id": chat_set.id, "chat_history_id": new_chat_history.id}
+
+
 
 # 获取指定chat_id/默认id的全部对话历史路由
 @chatset_router.get("/{appset_id}/chat_history", tags=["chat_history"])

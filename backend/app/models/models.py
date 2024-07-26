@@ -66,3 +66,10 @@ class ChatHistory(Model):
     execute_time = fields.FloatField()
     created_at = fields.DatetimeField(auto_now_add=True)
     updated_at = fields.DatetimeField(auto_now=True)
+
+class AdminUser(Model):
+    id = fields.UUIDField(pk=True)
+    username = fields.CharField(max_length=255, unique=True)
+    hashed_password = fields.CharField(max_length=255)
+    created_at = fields.DatetimeField(auto_now_add=True)
+    

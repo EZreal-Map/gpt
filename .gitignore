@@ -46,3 +46,9 @@ chroma-data
 # 临时测试文件
 server2.py
 test.py
+
+# docker挂载的文件夹
+/docker-volumes
+
+# docker save 打包的镜像
+*.tar

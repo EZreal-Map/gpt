@@ -10,10 +10,11 @@ import os
 import chromadb
 from fastapi import HTTPException
 from chromadb.config import Settings
+from config import settings
 from dotenv import load_dotenv
 load_dotenv()
 
-client = chromadb.HttpClient(host='localhost', port=9786, settings=Settings(anonymized_telemetry=False))
+client = chromadb.HttpClient(host=settings.CHROMA["host"], port=settings.CHROMA["port"], settings=Settings(anonymized_telemetry=False))
 
 def PDF_to_documents(file_paths: list, chunk_size: int=500, chunk_overlap=100, separator="", dataset_id="") -> list[Document]:
     """

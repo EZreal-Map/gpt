@@ -1,0 +1,65 @@
+version: "3"  # Docker Compose 文件版本
+
+services:
+  nginx:
+    image: nginx:latest  # 使用最新的 nginx 镜像
+    container_name: gpt-nginx  # 设置容器名称
+    ports:
+      - 9010:80  # 将容器的80端口映射到宿主机的80端口
+    volumes:
+      - C:/Users/tangk/Desktop/gpt/docker-volumes/nginx/html:/usr/share/nginx/html  # 映射静态文件目录
+      - C:/Users/tangk/Desktop/gpt/docker-volumes/nginx/nginx.conf:/etc/nginx/nginx.conf  # 映射 nginx 配置文件
+      # - /root/code/gpt/docker-volumes/nginx/html:/usr/share/nginx/html
+      # - /root/code/gpt/docker-volumes/nginx/nginx.conf:/etc/nginx/nginx.conf
+    networks:
+      - gpt_network  # 连接到自定义网络
+
+  mysql:
+    image: mysql:5.7.27  # 使用指定版本的 MySQL 镜像
+    container_name: gpt-mysql  # 设置容器名称
+    ports:
+      - 9011:3306  # 将容器的3306端口映射到宿主机的9011端口
+    environment:
+      - MYSQL_ROOT_PASSWORD=1209  # 设置 MySQL root 用户的密码
+    volumes:
+      - C:/Users/tangk/Desktop/gpt/docker-volumes/mysql/data:/var/lib/mysql  # 映射 MySQL 数据目录
+      - C:/Users/tangk/Desktop/gpt/docker-volumes/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql  # 挂载初始化脚本
+      # - /root/code/gpt/docker-volumes/mysql/data:/var/lib/mysql
+      # - /root/code/gpt/docker-volumes/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    command: >
+      --default-authentication-plugin=mysql_native_password
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_general_ci
+    networks:
+      - gpt_network  # 连接到自定义网络
+
+  chroma:
+    image: chromadb/chroma  # 使用指定的 chromadb 镜像
+    container_name: gpt-chroma  # 设置容器名称
+    ports:
+      - 9012:8000  # 将容器的8000端口映射到宿主机的9012端口
+    volumes:
+      - C:/Users/tangk/Desktop/gpt/docker-volumes/chroma:/chroma/chroma  # 映射 Chroma 数据目录
+      # - /root/code/gpt/docker-volumes/chroma:/chroma/chroma
+    environment:
+      - ANONYMIZED_TELEMETRY=False  # 禁用匿名数据收集
+    networks:
+      - gpt_network  # 连接到自定义网络
+
+  fastapi:
+    image: gpt:latest  # 使用构建的最新 FastAPI 镜像
+    container_name: gpt-fastapi  # 设置容器名称
+    build: .  # 从当前目录构建镜像
+    ports:
+      - 9013:7979  # 将容器的7979端口映射到宿主机的9013端口
+    env_file:
+      - .env  # 读取当前目录下的 .env 文件, 设置环境变量, 例如 OPENAI_API_KEY=sk-3234...
+    depends_on:
+      - mysql  # 确保 mysql 服务在 fastapi 启动之前启动
+      - chroma  # 确保 chroma 服务在 fastapi 启动之前启动
+    networks:
+      - gpt_network  # 连接到自定义网络
+
+networks:
+  gpt_network:
+    driver: bridge  # 使用 bridge 网络驱动

@@ -1,265 +1,176 @@
 <template>
-  <div class="chat-container">
-    <div class="messages-container" ref="messagesDiv">
-      <QAContainer
-        v-for="message in messages"
-        :key="message"
-        :question="message.question"
-        :answer="message.answer"
-        v-model:citeDocument="message.citeDocument"
-        :isConnecting="message.isConnecting"
-      ></QAContainer>
-    </div>
-    <div class="input-container">
-      <el-input
-        v-model="newQuery"
-        :autosize="{ minRows: 1, maxRows: 8 }"
-        type="textarea"
-        resize="none"
-        placeholder="Type a message..."
-        class="input-field"
-        @keydown.enter="handleEnterKeyDown"
-        @input="checkInput"
-      />
-
-      <el-icon
-        size="20"
-        class="input-icon enabled-icon"
-        color="red"
-        v-if="isConnecting"
-        @click="stopSendMessage"
-        ><CircleClose
-      /></el-icon>
-      <el-icon
-        v-else
-        size="20"
-        :class="{
-          'enabled-icon': canSendMessage,
-          'disabled-icon': !canSendMessage
-        }"
-        class="input-icon"
-        @click="sendMessage"
-        :disabled="!canSendMessage"
-        ><Top
-      /></el-icon>
+  <div class="account-view">
+    <div class="login-box">
+      <el-form ref="formRef" :model="form" :rules="rules" label-width="60px">
+        <div v-if="!isLogin">
+          <h1 class="login-title">登录窗口</h1>
+          <el-form-item label="用户名" prop="username">
+            <el-input
+              v-model="form.username"
+              placeholder="请输入用户名"
+              @keydown.enter="onSubmit(formRef)"
+            />
+          </el-form-item>
+          <el-form-item label="密码" prop="password">
+            <el-input
+              v-model="form.password"
+              placeholder="请输入密码"
+              type="password"
+              @keydown.enter="onSubmit(formRef)"
+            />
+          </el-form-item>
+          <div class="button-group">
+            <el-button type="primary" @click="onSubmit(formRef)"
+              >确定</el-button
+            >
+            <el-button class="right-btn" @click="logout">登出</el-button>
+          </div>
+        </div>
+        <div v-else>
+          <h1 class="login-title">欢迎, {{ tokenStore.username }}</h1>
+          <p class="login-content">您已成功登录</p>
+          <div class="button-group">
+            <el-button type="primary" @click="onSubmit(formRef)"
+              >确定</el-button
+            >
+            <el-button class="right-btn" @click="logout">登出</el-button>
+          </div>
+        </div>
+      </el-form>
     </div>
   </div>
 </template>
-
 <script setup>
-import { ref, onMounted, onUnmounted, computed } from 'vue'
-import { fetchEventSource } from '@microsoft/fetch-event-source'
-import { baseURL } from '@/utils/request.js'
-import QAContainer from '@/components/QAContainer.vue'
-import { Top, CircleClose } from '@element-plus/icons-vue'
+import { ref, reactive } from 'vue'
+import { ElMessage } from 'element-plus'
+import { postFormLoginAxios, checkIsLogin } from '@/api/user.js'
+import { useTokenStore } from '@/stores/token.js'
+import { useRouter } from 'vue-router'
 
-// messages -> 问答对话集合
-// newQuery -> 存放input的问题
-const messages = ref([])
-const newQuery = ref('')
+const router = useRouter()
+const tokenStore = useTokenStore()
 
-// 处理input输入框的回车事件，shift+回车换行, 回车发送消息
-const handleEnterKeyDown = (event) => {
-  if (!event.shiftKey) {
-    event.preventDefault()
-    sendMessage()
+const isLogin = ref(tokenStore.token_type ? true : false)
+
+// 匿名箭头函数并直接调用
+;(async () => {
+  const result = await checkIsLogin()
+  isLogin.value = result // 更新响应式变量
+})()
+
+const validateUsername = (rule, value, callback) => {
+  if (value === '') {
+    callback(new Error('请输入用户名'))
   }
+  callback()
 }
 
-// 检查输入框是否为空,不为空的时候，发送按钮可用
-const canSendMessage = ref(false)
-const checkInput = () => {
-  canSendMessage.value = newQuery.value.trim() !== ''
+const validatePassword = (rule, value, callback) => {
+  if (value === '') {
+    callback(new Error('请输入密码'))
+  }
+  callback()
 }
 
-// 是否正在连接，获取最后一个消息的连接状态
-const isConnecting = computed(() => {
-  if (messages.value.length > 0) {
-    return messages.value[messages.value.length - 1].isConnecting
-  }
-  return false
+const formRef = ref()
+// do not use same name with ref
+const form = reactive({
+  username: '',
+  password: ''
 })
 
-// 用于控制连接的终止
-const ctrl = ref(null) // 使用 ref 来定义 AbortController
+const rules = reactive({
+  username: [{ validator: validateUsername, trigger: 'blur' }],
+  password: [{ validator: validatePassword, trigger: 'blur' }]
+})
 
-const sendMessage = () => {
-  const query = newQuery.value.trim()
-
-  // 如果input没有内容，直接返回
-  // 如果有问题正在回答（正在连接），直接返回
-  if (!query || isConnecting.value) return
-  // 在这里重新创建 AbortController 实例
-  ctrl.value = new AbortController()
-  messages.value.push({
-    question: newQuery.value,
-    answer: '',
-    citeDocument: [],
-    isConnecting: true
-  })
-  newQuery.value = ''
-  const streamUrl = baseURL + '/chat'
-  fetchEventSource(streamUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      query: query,
-      dataset_ids: ['1ecac09e-080d-43e0-aad3-376501c8541b'],
-      k: 4,
-      min_relevance: 0.5
-    }),
-    signal: ctrl.value.signal,
-    onmessage(event) {
-      // 接收到消息回调 （多次）
-      // console.log(event)
-      const data = JSON.parse(event.data)
-      // console.log(data)
-      if (event.event === 'quotation') {
-        // console.log(data)
-        messages.value[messages.value.length - 1].citeDocument = data
+const onSubmit = async (formRef) => {
+  if (!formRef) return
+  if (!isLogin.value) {
+    formRef.validate(async (valid) => {
+      if (valid) {
+        const response = await postFormLoginAxios({
+          username: form.username,
+          password: form.password
+        })
+        ElMessage.success('登录成功')
+        tokenStore.token_type = response.data.token_type
+        tokenStore.access_token = response.data.access_token
+        tokenStore.username = form.username
+        isLogin.value = true
       } else {
-        messages.value[messages.value.length - 1].answer += data.content
+        ElMessage.error('登录失败')
       }
-    },
-    onclose() {
-      // 正常连接关闭回调
-      messages.value[messages.value.length - 1].isConnecting = false
-      console.log('Connection closed')
-    },
-    onerror(err) {
-      //连接出现异常回调
-      // 必须抛出错误才会停止
-      ctrl.value.abort() // 终止连接
-      throw err
-    }
-  })
-}
-
-const stopSendMessage = () => {
-  ctrl.value.abort() // 终止连接
-  console.log('stopSendMessage')
-  messages.value[messages.value.length - 1].isConnecting = false
-}
-const messagesDiv = ref(null)
-const observer = ref(null)
-
-onMounted(() => {
-  observeScrollHeight()
-})
-
-const observeScrollHeight = () => {
-  if (messagesDiv.value) {
-    // MutationObserver 接受一个回调函数作为参数 (callback)，
-    // 这个回调函数会在监听到指定 DOM 节点（messagesDiv.value）的变化时被调用。
-    observer.value = new MutationObserver(() => {
-      scrollToBottom()
     })
-    // childList: true 表示监听子节点的变化，即节点的子节点（即消息列表中的消息条目）发生变化时触发回调。
-    // subtree: true 表示监听目标节点的所有后代节点，即包括子节点、子节点的子节点等，以确保深度监听
-    observer.value.observe(messagesDiv.value, {
-      childList: true,
-      subtree: true
+  } else {
+    router.push({
+      name: 'app'
     })
   }
 }
 
-const scrollToBottom = () => {
-  if (messagesDiv.value) {
-    if (
-      messagesDiv.value.scrollHeight -
-        messagesDiv.value.scrollTop -
-        messagesDiv.value.clientHeight <
-      200
-    ) {
-      messagesDiv.value.scrollTop = messagesDiv.value.scrollHeight
-    }
-    messagesDiv.value.scrollTop = messagesDiv.value.scrollHeight
-  }
+const logout = () => {
+  tokenStore.token_type = ''
+  tokenStore.access_token = ''
+  ElMessage.success('登出成功')
+  isLogin.value = false
 }
-
-// 当组件销毁时停止观察
-onUnmounted(() => {
-  if (observer.value) {
-    observer.value.disconnect()
-  }
-})
 </script>
-
 <style scoped>
-.chat-container {
-  border: 1px solid #ccc;
-  padding: 10px;
-  border-radius: 5px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+.account-view {
   display: flex;
-  flex-direction: column;
-  height: 95%;
-}
-
-.messages-container {
-  flex: 1;
-  overflow-y: auto;
-  text-align: left;
-  margin-bottom: 10px;
-}
-
-/* 自定义滚动条样式 */
-/* .messages-container::-webkit-scrollbar {
-  width: 8px;
-}
-
-.messages-container::-webkit-scrollbar-thumb {
-  background-color: #ccc;
-  border-radius: 10px;
-}
-
-.messages-container::-webkit-scrollbar-track {
-  background-color: transparent;
-  border-radius: 10px;
-}
-
-.messages-container::-webkit-scrollbar-corner {
-  background-color: transparent;
-} */
-
-.input-container {
-  display: flex;
+  justify-content: center;
   align-items: center;
-  margin: 10px auto; /* 居中对齐 */
-  margin-top: auto; /* 将输入框放置在底部 */
-  width: 70%;
+  width: 100%;
+  height: 100%;
 }
 
-.input-container button {
-  margin-left: 10px;
-  padding: 8px 15px;
-  background-color: #4caf50;
-  color: white;
-  border: none;
-  border-radius: 3px;
-  cursor: pointer;
+.login-box {
+  background-color: #ffffff; /* 登录框背景颜色 */
+  padding: 10px 30px 20px 30px; /* 增加填充 */
+  border-radius: 10px; /* 圆角边框 */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* 增加阴影 */
+  text-align: center; /* 文本居中 */
+  width: 300px;
 }
 
-.input-icon {
-  margin-left: 10px;
-  margin-bottom: 2px;
-  border-radius: 8px;
-  padding: 6px;
-  transition:
-    background-color 0.3s,
-    color 0.3s;
+.login-title {
+  font-size: 24px; /* 标题字体大小 */
+  margin-bottom: 20px; /* 标题下方间距 */
 }
 
-.input-icon.enabled-icon {
-  background-color: #409eff;
-  color: white;
-  cursor: pointer;
+/* 既是 <p> 元素又具有 login-content 类的元素 */
+p.login-content {
+  margin-bottom: 20px;
 }
 
-.input-icon.disabled-icon {
-  background-color: #f1f1f1;
-  color: black;
+.el-form-item {
+  margin-bottom: 20px; /* 表单项之间的间距 */
+}
+
+.el-button {
+  padding: 0 25px;
+}
+
+.position-right {
+  position: absolute;
+  right: 0%;
+}
+
+.right-btn {
+  background-color: #ff4d4f; /* 登出按钮颜色 */
+  color: white; /* 按钮文字颜色 */
+  border-color: #ff4d4f; /* 按钮边框颜色 */
+}
+
+.right-btn:hover {
+  background-color: #ff7875; /* 按钮悬停颜色 */
+  border-color: #ff7875; /* 按钮悬停边框颜色 */
+}
+
+.button-group {
+  display: flex;
+  justify-content: space-between;
+  margin: 0 30px;
 }
 </style>

@@ -103,6 +103,7 @@ import { Top, CircleClose } from '@element-plus/icons-vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getChatHistoryAxios } from '@/api/chatset.js'
+import { useTokenStore } from '@/stores/token.js'
 
 // 使用 useRoute 获取路由信息
 const route = useRoute()
@@ -208,6 +209,7 @@ const isConnecting = computed(() => {
 
 // 用于控制连接的终止
 const ctrl = ref(null) // 使用 ref 来定义 AbortController
+const tokenStore = useTokenStore()
 
 const sendMessage = (query) => {
   // const query = newQuery.value.trim()
@@ -233,12 +235,14 @@ const sendMessage = (query) => {
   fetchEventSource(streamUrl, {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      Authorization: `${tokenStore.token_type} ${tokenStore.access_token}`
     },
     body: JSON.stringify({
       query: query,
       appset_id: appID,
-      chat_id: chatID
+      chat_id: chatID,
+      is_test_mode: props.isTestMode
     }),
     signal: ctrl.value.signal,
     openWhenHidden: true, // 在调用失败时禁止重复调用
