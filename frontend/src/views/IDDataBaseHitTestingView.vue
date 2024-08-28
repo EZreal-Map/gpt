@@ -112,7 +112,8 @@ import { ElMessage } from 'element-plus'
 import {
   postSimilaritySearchAxios,
   getTestHistoryAxios,
-  postTestHistoryAxios
+  postTestHistoryAxios,
+  deleteHistoryQueryAxios
 } from '@/api/dataset.js'
 import { CircleClose } from '@element-plus/icons-vue'
 import { useRoute } from 'vue-router'
@@ -230,6 +231,12 @@ const createNewHistoryQuery = async () => {
     k: citationLimit.value,
     min_relevance: formattedMinRelevance.value
   })
+}
+
+// 删除一个历史查询
+const deleteHistoryQuery = async (id) => {
+  await deleteHistoryQueryAxios(id)
+  fetchTestHistory()
 }
 
 // 编辑文档的窗口

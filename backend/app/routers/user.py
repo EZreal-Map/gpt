@@ -2,11 +2,20 @@ from fastapi import APIRouter, HTTPException, Depends, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from datetime import timedelta
 from models.models import AdminUser
-from utils.authenticate import UserModel, UserInDBModel, TokenModel, ACCESS_TOKEN_EXPIRE_HOURS, \
-    hash_password, authenticate_user, create_access_token, is_user_logged_in
+from utils.authenticate import (
+    UserModel,
+    UserInDBModel,
+    TokenModel,
+    ACCESS_TOKEN_EXPIRE_HOURS,
+    hash_password,
+    authenticate_user,
+    create_access_token,
+    is_user_logged_in,
+)
 
 # 创建一个APIRouter实例
 user_router = APIRouter()
+
 
 # 创建一个admin用户
 @user_router.post("/admin-user", tags=["user"])
@@ -25,6 +34,7 @@ async def create_admin_user(user: UserModel):
         raise HTTPException(status_code=400, detail=str(e))
     return new_user
 
+
 # 获取所有admin用户
 @user_router.get("/admin-users", tags=["user"])
 async def get_admin_users():
@@ -35,6 +45,7 @@ async def get_admin_users():
     # 获取所有数据集记录
     users = await AdminUser.all()
     return users
+
 
 # 删除一个admin用户
 @user_router.delete("/admin-user/{username}", tags=["user"])
@@ -48,10 +59,11 @@ async def delete_admin_user(username: str):
     user = await AdminUser.get_or_none(username=username)
     if not user:
         raise HTTPException(status_code=404, detail="未找到指定的用户")
-    
+
     # 删除用户
     await user.delete()
     return {"detail": f"用户:{username}删除成功"}
+
 
 # 用户登录 / 用户身份认证(depend)，获取 token / 更新 token
 @user_router.post("/login", tags=["login"])
@@ -85,5 +97,3 @@ async def check_user_logged_in(request: Request):
     """
     is_login = await is_user_logged_in(request)
     return {"is_login": is_login}
-
-

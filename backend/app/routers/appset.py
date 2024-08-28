@@ -1,4 +1,3 @@
-
 from fastapi import APIRouter, HTTPException
 from models.models import APPSet, DataSet, ChatSet
 from enum import Enum
@@ -10,27 +9,50 @@ from datetime import datetime
 # 创建一个APIRouter实例
 appset_router = APIRouter()
 
+
 # 定义枚举类
 class PrivacyEnum(str, Enum):
     PRIVATE = "私有"
     PUBLIC = "公开"
+
 
 # 定义 Pydantic 模型用于请求体验证
 class APPSetPydantic(BaseModel):
     name: str
     description: Optional[str] = None
     privacy: PrivacyEnum
+
+
 class APPSetPydantic(BaseModel):
     name: str = Field(..., title="名称", description="APPSet 的名称")
-    description: Optional[str] = Field(None, title="描述", description="APPSet 的描述信息")
-    privacy: PrivacyEnum = Field(..., title="隐私设置", description="APPSet 的隐私设置，可以为 '私有' 或 '公开'")
-    model_name: Optional[str] = Field(None, title="模型名称", description="大语言模型的名称")
-    model_temperature: Optional[float] = Field(None, title="模型温度", description="大语言模型的温度参数")
-    model_max_tokens: Optional[int] = Field(None, title="最大令牌数", description="大语言模型生成的最大令牌数")
-    model_history_window_length: Optional[int] = Field(None, title="历史窗口长度", description="大语言模型的历史窗口长度")
-    prompt_template: Optional[str] = Field(None, title="提示词模板", description="用于大语言模型的提示词模板")
-    citation_limit: Optional[int] = Field(None, title="引用限制", description="关联知识库的引用限制")
-    min_relevance: Optional[float] = Field(None, title="最小相关性", description="关联知识库的最小相关性")
+    description: Optional[str] = Field(
+        None, title="描述", description="APPSet 的描述信息"
+    )
+    privacy: PrivacyEnum = Field(
+        ..., title="隐私设置", description="APPSet 的隐私设置，可以为 '私有' 或 '公开'"
+    )
+    model_name: Optional[str] = Field(
+        None, title="模型名称", description="大语言模型的名称"
+    )
+    model_temperature: Optional[float] = Field(
+        None, title="模型温度", description="大语言模型的温度参数"
+    )
+    model_max_tokens: Optional[int] = Field(
+        None, title="最大令牌数", description="大语言模型生成的最大令牌数"
+    )
+    model_history_window_length: Optional[int] = Field(
+        None, title="历史窗口长度", description="大语言模型的历史窗口长度"
+    )
+    prompt_template: Optional[str] = Field(
+        None, title="提示词模板", description="用于大语言模型的提示词模板"
+    )
+    citation_limit: Optional[int] = Field(
+        None, title="引用限制", description="关联知识库的引用限制"
+    )
+    min_relevance: Optional[float] = Field(
+        None, title="最小相关性", description="关联知识库的最小相关性"
+    )
+
 
 # 定义 Pydantic 模型用于响应体验证
 class APPSetResponse(BaseModel):
@@ -48,9 +70,9 @@ async def get_all_datasets():
     获取所有APP应用数据集
     :return: APP应用数据集列表
     """
-    appsets = await APPSet.all().order_by('-created_at')
+    appsets = await APPSet.all().order_by("-created_at")
     for appset in appsets:
-        appset.created_at = appset.created_at.strftime('%Y-%m-%d %H:%M:%S')
+        appset.created_at = appset.created_at.strftime("%Y-%m-%d %H:%M:%S")
     return appsets
 
 
@@ -64,7 +86,9 @@ async def create_dataset(create_appset: APPSetPydantic):
     """
 
     # 过滤掉值为 None 的键值对
-    filtered_dict = {key: value for key, value in create_appset.dict().items() if value is not None}
+    filtered_dict = {
+        key: value for key, value in create_appset.dict().items() if value is not None
+    }
 
     # 创建新的数据集记录c
     new_appset = await APPSet.create(**filtered_dict)
@@ -73,6 +97,7 @@ async def create_dataset(create_appset: APPSetPydantic):
     await ChatSet.create(app_id=new_appset, is_test=True)
 
     return new_appset
+
 
 # 更新指定 APPSet 的路由
 @appset_router.put("/{appset_id}", tags=["appset"])
@@ -93,6 +118,7 @@ async def update_dataset(appset_id: str, appset_update: APPSetPydantic):
     await appset.save()
     return appset
 
+
 # 删除指定 APPSet 的路由
 @appset_router.delete("/{appset_id}", response_model=dict, tags=["appset"])
 async def delete_dataset(appset_id: UUID):
@@ -104,15 +130,14 @@ async def delete_dataset(appset_id: UUID):
     appset = await APPSet.get_or_none(id=appset_id)
     if not appset:
         raise HTTPException(status_code=404, detail="Dataset not found")
-    
+
     # 删除数据库记录
     await appset.delete()
-    return {
-        "appset": appset
-        }
+    return {"appset": appset}
+
 
 ### 移到 appset_no_auth.py 中 ###
-# 获取指定{appset_id} APPSet 的路由  
+# 获取指定{appset_id} APPSet 的路由
 # @appset_router.get("/{appset_id}", tags=["appset"])
 # async def get_dataset(appset_id: str):
 #     """
@@ -173,5 +198,5 @@ async def get_appset_datasets(appset_id: str):
     # 查询关联的所有 DataSet 数据
     datasets = await appset.datasets.all()
     for dataset in datasets:
-        dataset.created_at = dataset.created_at.strftime('%Y-%m-%d %H:%M:%S')
+        dataset.created_at = dataset.created_at.strftime("%Y-%m-%d %H:%M:%S")
     return datasets

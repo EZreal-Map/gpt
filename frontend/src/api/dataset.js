@@ -53,7 +53,7 @@ export const postMoveTempFileToDatabaseAxios = (
 // IDDataBaseDocumentView.vue
 // 获取所有 “条” 文档数据
 export const getDocumentsAxios = (databaseID) =>
-  request.get(`/dataset/${databaseID}/articles/`)
+  request.get(`/dataset/${databaseID}/articles`)
 
 const parseFilenameFromContentDisposition = (contentDisposition) => {
   // 匹配 filename*=

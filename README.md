@@ -13,11 +13,13 @@
 
 3. 运行前端代码
 
+   1. 调整`/frontend/src/utils/request.js`中的`baseURL`为开发环境`'host': 'localhost'`和`CHROMA = {'host': 'localhost', 'port': 9786}`
    1. `cd frontend`   
    2. `pnpm install`
 
 4. 运行后端代码
 
+   1. 调整`/backend/app/config.py`中的`baseURL`为开发环境`http://127.0.0.1:7979`
    1. `cd backend`
    2. `poetry install`
    3. `poetry shell`
@@ -34,9 +36,11 @@
    ## 打包部署
 
    1. 前端打包
+      1. 调整`/frontend/src/utils/request.js`中的`baseURL`为生产环境`/api`
       1. `pnpm build`
       2. 复制`frontend/dist`文件夹下面所有内容到`docker-volumes/nginx/html`
    2. 后端打包python运行环境
       1. `poetry build`
    3. docker部署
+      1. 调整`/frontend/src/utils/request.js`中的`baseURL`为开发环境`'host': 'localhost'`和`CHROMA = {'host': 'localhost', 'port': 9786}`
       1. `docker-compose up`

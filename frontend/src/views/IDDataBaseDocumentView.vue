@@ -60,6 +60,7 @@ import {
   getDownloadDocumentAxios,
   deleteDocumentAxios
 } from '@/api/dataset.js'
+import { ElMessage } from 'element-plus'
 
 // 从路由对象中提取 databaseID 参数
 const route = useRoute()
@@ -116,10 +117,16 @@ const editFile = (documentID) => {
 // 删除文件操作
 const deleteFile = async (documentID) => {
   try {
+    // 前端删除
+    documentData.value = documentData.value.filter(
+      (item) => item.id !== documentID
+    )
+
+    // 后端删除
     const response = await deleteDocumentAxios(documentID)
     console.log('删除文件成功：', response)
-
-    // 删除成功后重新获取数据
+    // 后端删除成功后重新获取数据
+    ElMessage.success('删除成功')
     fetchDataSet()
   } catch (error) {
     console.error('请求失败:', error)

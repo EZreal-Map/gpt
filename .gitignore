@@ -52,3 +52,6 @@ test.py
 
 # docker save 打包的镜像
 *.tar
+
+# 测试文件
+test*
