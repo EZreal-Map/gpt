@@ -27,11 +27,12 @@
    5. 进入mysql，创建一个名为`gpt`空数据库，
       1. `mysql -uroot -p`
       2. `create database fastapi charset utf8;`
-   6. 使用aerich迁移工具构建数据库表结构
+   7. 使用aerich迁移工具构建数据库表结构
       1. `cd app`
       2. `aerich init -t server.TORTOISE_ORM`
       3. `aerich init-db`
-   7. `python ./app/server.py` (前面已经进入`poetry shell`)
+   8. `cd ./app` 需要进入`app`文件夹里面，`static`目录会创建到`app`下，而不是`backend`下
+   9. `python ./server.py` (前面已经进入`poetry shell`)
 
    ## 打包部署
 

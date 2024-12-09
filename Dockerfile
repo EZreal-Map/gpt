@@ -14,7 +14,7 @@ RUN apt-get update && \
     apt-get clean && \
     apt-get autoremove -y
 
-WORKDIR /backend
+WORKDIR /home/backend
 
 # 复制应用文件
 COPY ./backend ./
@@ -29,7 +29,9 @@ COPY ./backend/app ./app
 EXPOSE 7979
 
 # 启动应用
-CMD ["python", "./app/server.py"]
+# CMD ["python", "./app/server.py"]
+# 使用 sh -c 执行多条命令
+CMD ["sh", "-c", "cd ./app && python ./server.py"]
 
 # # 安装 poetry
 # RUN pip install poetry==1.8.3

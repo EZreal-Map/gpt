@@ -117,7 +117,12 @@ class QueryModel(BaseModel):
 @chat_router.post("", tags=["chat"])
 async def retrieval_chat(request: Request, query_body: QueryModel):
     # 通过appset_id 查询 appset 参数 / datasets_ids 参数
-    appset = await APPSet.get(id=query_body.appset_id).prefetch_related("datasets")
+    try:
+        # 尝试获取 APPSet 对象并预取关联数据
+        appset = await APPSet.get(id=query_body.appset_id).prefetch_related("datasets")
+    except:
+        # 如果对象不存在，记录日志并抛出 HTTP 404 异常
+        raise HTTPException(status_code=404, detail="未找到指定的 APPSet")
 
     if appset.privacy == PrivacyEnum.PRIVATE.value:
         is_login = await is_user_logged_in(request)
@@ -204,3 +209,73 @@ async def retrieval_chat(qa_body: QAModel):
     chatset.name = title_name
     await chatset.save()
     return {"title_name": title_name, "chatset": chatset}
+
+
+# 提供给UE的接口，传入query，返回修饰后的query
+# 创建一个FastAPI路由，获取 query 修饰后的 query string 添加 RAG 和 历史上下文
+@chat_router.post("/ue", tags=["chat"])
+async def retrieval_chat(request: Request, query_body: QueryModel):
+    print("query_body:", query_body)
+    # 通过appset_id 查询 appset 参数 / datasets_ids 参数
+    try:
+        # 尝试获取 APPSet 对象并预取关联数据
+        appset = await APPSet.get(id=query_body.appset_id).prefetch_related("datasets")
+    except:
+        # 如果对象不存在，记录日志并抛出 HTTP 404 异常
+        raise HTTPException(status_code=404, detail="未找到指定的 APPSet")
+
+    if appset.privacy == PrivacyEnum.PRIVATE.value:
+        is_login = await is_user_logged_in(request)
+        if not is_login:
+            raise HTTPException(status_code=403, detail=f"禁止访问send_message")
+    # 获取 appset 中所有公开 知识库的 id
+    dataset_ids = [
+        dataset.id
+        for dataset in appset.datasets
+        if dataset.privacy == PrivacyEnum.PUBLIC.value
+    ]
+    # 使用 retrieval_similarity_search 函数检索相关文档 检索能力
+    docs_and_scores = retrieval_similarity_search(
+        dataset_ids, query_body.query, appset.citation_limit, appset.min_relevance
+    )
+
+    if appset.prompt_template:
+        template = appset.prompt_template
+    else:
+        template = retrieval_template
+
+    # 提取并拼接每个 document.page_content
+    context = "\n\n".join(doc["page_content"] for doc in docs_and_scores)
+    retrieval_context = HumanMessage(
+        content=template.format(question=query_body.query, context=context)
+    )
+    print(retrieval_context.content)
+    # 获取最近的 n 条对话历史记录 上下文能力
+    # 使用 await 等待异步函数的执行完成
+    qa_dict = await get_recent_chat_histories(
+        appset_id=query_body.appset_id,
+        chat_id=query_body.chat_id,
+        is_test_mode=query_body.is_test_mode,
+        n=appset.model_history_window_length,
+    )
+    print("qa_dict:", qa_dict)
+    # 生成一个包含 HumanMessage 和 AIMessage 对象的列表
+    query = []
+    for qa in qa_dict:
+        query.append(HumanMessage(content=qa["question"]))
+        query.append(AIMessage(content=qa["answer"]))
+    print("history_context:", query)
+    query.append(retrieval_context)
+
+    # 上面是一样的，和retrieval_chat一样
+    # 构造查询字符串
+    query_string = ""
+    for q in query:
+        if isinstance(q, HumanMessage):
+            query_string += f"HumanMessage:{q.content}\n"
+        elif isinstance(q, AIMessage):
+            query_string += f"AIMessage:{q.content}\n"
+
+    print("query_string:", query_string)
+
+    return {"query:": query_string}
