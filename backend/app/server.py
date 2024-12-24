@@ -10,6 +10,7 @@ from routers.appset_no_auth import appset_router_no_auth
 from routers.chatset import chatset_router
 from routers.chat_history import chat_history_router
 from routers.user import user_router
+from routers.fileset import fileset_router
 from fastapi.middleware.cors import CORSMiddleware
 from utils.authenticate import get_current_user
 from dotenv import load_dotenv
@@ -59,6 +60,8 @@ app.include_router(chatset_router, prefix="/chatset")
 app.include_router(chat_history_router, prefix="/chat_history")
 # 用户 有关路由
 app.include_router(user_router)
+# fileset存储 有关路由
+app.include_router(fileset_router, prefix="/fileset")
 if __name__ == "__main__":
     import uvicorn
 

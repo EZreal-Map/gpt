@@ -18,8 +18,15 @@ async def upgrade(db: BaseDBAsyncClient) -> str:
     `citation_limit` INT NOT NULL  DEFAULT 4,
     `min_relevance` DOUBLE NOT NULL  DEFAULT 0.5
 ) CHARACTER SET utf8mb4;
+CREATE TABLE IF NOT EXISTS `adminuser` (
+    `id` CHAR(36) NOT NULL  PRIMARY KEY,
+    `username` VARCHAR(255) NOT NULL UNIQUE,
+    `hashed_password` VARCHAR(255) NOT NULL,
+    `created_at` DATETIME(6) NOT NULL  DEFAULT CURRENT_TIMESTAMP(6)
+) CHARACTER SET utf8mb4;
 CREATE TABLE IF NOT EXISTS `chatset` (
     `id` CHAR(36) NOT NULL  PRIMARY KEY,
+    `name` VARCHAR(255) NOT NULL  DEFAULT 'new chat',
     `is_test` BOOL NOT NULL  DEFAULT 0,
     `created_at` DATETIME(6) NOT NULL  DEFAULT CURRENT_TIMESTAMP(6),
     `updated_at` DATETIME(6) NOT NULL  DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
@@ -56,6 +63,21 @@ CREATE TABLE IF NOT EXISTS `article` (
     `updated_at` DATETIME(6) NOT NULL  DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
     `dataset_id_id` CHAR(36) NOT NULL,
     CONSTRAINT `fk_article_dataset_73afc631` FOREIGN KEY (`dataset_id_id`) REFERENCES `dataset` (`id`) ON DELETE CASCADE
+) CHARACTER SET utf8mb4;
+CREATE TABLE IF NOT EXISTS `fileset` (
+    `id` CHAR(36) NOT NULL  PRIMARY KEY,
+    `create_time` DATETIME(6) NOT NULL  DEFAULT CURRENT_TIMESTAMP(6),
+    `appset_id_id` CHAR(36) NOT NULL,
+    `chat_id_id` CHAR(36)  UNIQUE,
+    CONSTRAINT `fk_fileset_appset_17495ff5` FOREIGN KEY (`appset_id_id`) REFERENCES `appset` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_fileset_chatset_3691d5c7` FOREIGN KEY (`chat_id_id`) REFERENCES `chatset` (`id`) ON DELETE SET NULL
+) CHARACTER SET utf8mb4;
+CREATE TABLE IF NOT EXISTS `file` (
+    `id` CHAR(36) NOT NULL  PRIMARY KEY,
+    `filename` VARCHAR(255) NOT NULL,
+    `create_time` DATETIME(6) NOT NULL  DEFAULT CURRENT_TIMESTAMP(6),
+    `fileset_id_id` CHAR(36) NOT NULL,
+    CONSTRAINT `fk_file_fileset_d30a7743` FOREIGN KEY (`fileset_id_id`) REFERENCES `fileset` (`id`) ON DELETE CASCADE
 ) CHARACTER SET utf8mb4;
 CREATE TABLE IF NOT EXISTS `querytesthistory` (
     `id` CHAR(36) NOT NULL  PRIMARY KEY,

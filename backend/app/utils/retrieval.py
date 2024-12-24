@@ -24,10 +24,11 @@ client = chromadb.HttpClient(
 
 def PDF_to_documents(
     file_paths: list,
-    chunk_size: int = 500,
-    chunk_overlap=100,
+    chunk_size: int = 1000,
+    chunk_overlap=200,
     separator="",
     dataset_id="",
+    file_ids=[],
 ) -> list[Document]:
     """
     Load and split PDF files into documents.
@@ -45,7 +46,7 @@ def PDF_to_documents(
         length_function=len,
     )
     documents = []
-    for file_path in file_paths:
+    for index, file_path in enumerate(file_paths):
         # 提取文件名
         filename = os.path.basename(file_path)
         # 加载PDF的完整内容
@@ -62,6 +63,9 @@ def PDF_to_documents(
         chunk_sum_num = len(temp_documents)
 
         article_id = str(uuid.uuid4())  # 注意：放在循环外，所有分块共享一个article_id
+        # 提供给file模块使用，article_id是File表的id关联
+        if len(file_ids) > 0:
+            article_id = str(file_ids[index])
 
         for document in temp_documents:
             document.metadata["filename"] = filename

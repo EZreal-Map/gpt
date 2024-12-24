@@ -1,10 +1,13 @@
 from fastapi import APIRouter, HTTPException
-from models.models import APPSet, DataSet, ChatSet
+from models.models import APPSet, DataSet, ChatSet, FileSet
 from enum import Enum
 from pydantic import BaseModel, Field
 from typing import List, Optional, Union
 from uuid import UUID
 from datetime import datetime
+from routers.fileset import fileset_dir
+import shutil
+from utils.retrieval import load_vectorstore
 
 # 创建一个APIRouter实例
 appset_router = APIRouter()
@@ -131,6 +134,22 @@ async def delete_dataset(appset_id: UUID):
     if not appset:
         raise HTTPException(status_code=404, detail="Dataset not found")
 
+    # 获取与指定 APPSet 关联的所有 FileSet
+    filesets = await FileSet.filter(appset_id=appset_id)
+
+    # 在这里你可以根据需要对 filesets 进行一些处理，例如删除文件、文件夹等
+    for fileset in filesets:
+        # 假设你需要删除与 FileSet 关联的文件夹等资源
+        # 可以在此进行操作，例如删除文件夹、向量数据库清理等
+        app_folder = fileset_dir / str(fileset.id)
+        if app_folder.exists() and app_folder.is_dir():
+            print(f"删除文件夹及其内容: {app_folder}")
+            shutil.rmtree(app_folder)  # 删除文件夹及其所有内容
+
+        # 删除与 FileSet 关联的其他数据或文档
+        load_vectorstore(fileset.id).delete_collection()
+
+    
     # 删除数据库记录
     await appset.delete()
     return {"appset": appset}

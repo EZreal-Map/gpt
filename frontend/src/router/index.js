@@ -9,7 +9,7 @@ import IDDataBaseRouterView from '@/views/IDDataBaseRouterView.vue'
 import IDDataBaseDocumentView from '@/views/IDDataBaseDocumentView.vue'
 import IDDataBaseHitTestingView from '@/views/IDDataBaseHitTestingView.vue'
 import IDDataBaseDocumentChunkView from '@/views/IDDataBaseDocumentChunkView.vue'
-import IDDataBaseUpdateDocumentView from '@/views/IDDataBaseUpdateDocumentView.vue'
+import IDDataBaseUpdateDocumentView from '@/views/IDDataBaseUploadDocumentView.vue'
 
 // 二级路由：应用的子路由
 import APPIDRouterView from '@/views/APPIDRouterView.vue'

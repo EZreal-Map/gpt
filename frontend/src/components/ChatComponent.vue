@@ -1,5 +1,10 @@
 <template>
-  <div class="chat-componet">
+  <div
+    class="chat-componet"
+    @drop.prevent="handleDrop"
+    @dragover.prevent
+    @dragenter.prevent="uploadShow = true"
+  >
     <div class="messages-container" ref="messagesDiv">
       <!-- 历史消息 (history_messages) -->
       <QAContainer
@@ -58,38 +63,73 @@
       </div>
     </div>
 
-    <div class="input-container">
-      <el-input
-        v-model="newQuery"
-        :autosize="{ minRows: 1, maxRows: 8 }"
-        type="textarea"
-        resize="none"
-        placeholder="Type a message..."
-        class="input-field"
-        @keydown.enter="handleEnterKeyDown"
-        @input="checkInput"
-      />
-
-      <el-icon
-        size="20"
-        class="input-icon enabled-icon"
-        color="red"
-        v-if="isConnecting"
-        @click="stopSendMessage"
-        ><CircleClose
-      /></el-icon>
-      <el-icon
-        v-else
-        size="20"
-        :class="{
-          'enabled-icon': canSendMessage,
-          'disabled-icon': !canSendMessage
+    <div class="chat-container-bottom">
+      <el-upload
+        v-model:file-list="fileList"
+        class="upload-container"
+        :action="postUploadFileURL()"
+        :headers="{
+          Authorization: `${tokenStore.token_type} ${tokenStore.access_token}`
         }"
-        class="input-icon"
-        @click="sendMessage(newQuery)"
-        :disabled="!canSendMessage"
-        ><Top
-      /></el-icon>
+        :data="{
+          fileset_id: fileset_id,
+          chatset_id: chatID,
+          appset_id: appID,
+          is_test_mode: props.isTestMode
+        }"
+        multiple
+        drag
+        :before-remove="beforeRemove"
+      >
+        <div
+          class="upload-icon-container"
+          v-show="uploadShow"
+          @mouseleave="uploadShow = false"
+        >
+          <el-icon class="el-icon--upload"><upload-filled /></el-icon>
+          <div class="el-upload__text">
+            Drop file here or <em>click to upload</em>
+          </div>
+        </div>
+        <template #tip>
+          <!-- <div class="el-upload__tip">
+            jpg/png files with a size less than 500KB.
+          </div> -->
+        </template>
+      </el-upload>
+      <div class="input-container">
+        <el-input
+          v-model="newQuery"
+          :autosize="{ minRows: 1, maxRows: 8 }"
+          type="textarea"
+          resize="none"
+          placeholder="Type a message..."
+          class="input-field"
+          @keydown.enter="handleEnterKeyDown"
+          @input="checkInput"
+        />
+
+        <el-icon
+          size="20"
+          class="input-icon enabled-icon"
+          color="red"
+          v-if="isConnecting"
+          @click="stopSendMessage"
+          ><CircleClose
+        /></el-icon>
+        <el-icon
+          v-else
+          size="20"
+          :class="{
+            'enabled-icon': canSendMessage,
+            'disabled-icon': !canSendMessage
+          }"
+          class="input-icon"
+          @click="sendMessage(newQuery)"
+          :disabled="!canSendMessage"
+          ><Top
+        /></el-icon>
+      </div>
     </div>
   </div>
 </template>
@@ -99,11 +139,54 @@ import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { fetchEventSource } from '@microsoft/fetch-event-source'
 import { baseURL } from '@/utils/request.js'
 import QAContainer from '@/components/QAContainer.vue'
-import { Top, CircleClose } from '@element-plus/icons-vue'
+import { Top, CircleClose, UploadFilled } from '@element-plus/icons-vue'
 import { useRoute } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { getChatHistoryAxios } from '@/api/chatset.js'
+import {
+  postUploadFileURL,
+  associateChatsetToFilesetAxios,
+  getFilesetIdAxios,
+  deleteFileByFileIdAxios
+} from '@/api/fileset.js'
 import { useTokenStore } from '@/stores/token.js'
+
+const fileList = ref([])
+
+const uploadShow = ref(false)
+
+const handleDrop = (event) => {
+  uploadShow.value = false
+  console.log(event)
+  console.log('event')
+  event.preventDefault() // 阻止默认的打开行为
+}
+
+const beforeRemove = async (uploadFile) => {
+  try {
+    // console.log(uploadFile)
+    await ElMessageBox.confirm(`确定删除 ${uploadFile.name} ?`, {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消'
+    })
+
+    try {
+      const response = await deleteFileByFileIdAxios(uploadFile.id)
+      ElMessage.success(response.data.message) // 提示删除成功
+      // ElMessage.success('删除成功') // 提示删除成功
+      return true
+    } catch (error) {
+      console.error('Error:', error) // 打印错误信息
+      return false
+    }
+  } catch {
+    // 如果用户取消了操作
+    ElMessage.info('已取消删除') // 提示取消删除
+    return false
+  }
+}
+
+const fileset_id = ref(crypto.randomUUID()) // 文件ID
 
 // 使用 useRoute 获取路由信息
 const route = useRoute()
@@ -136,12 +219,17 @@ const isSecondLineTypingDone = ref(false) // 第二行打字动画完成
 
 // defineExpose 用于暴露组件内部的方法给父组件使用
 defineExpose({
-  // 重置初始封面参数，为了重新显示typing动画
   initParams: () => {
+    // 重置初始封面参数，为了重新显示typing动画
     isTypingDone.value = false
     isSecondLineVisible.value = false
     isSecondLineTypingDone.value = false
     console.log('initParams')
+    // 重新生成文件ID
+    fileset_id.value = crypto.randomUUID()
+    console.log(fileset_id.value)
+    // TODO: 清空文件列表
+    fileList.value = []
   }
 })
 
@@ -170,14 +258,19 @@ const fetchChatHistory = async () => {
   console.log('fetchChatHistory', history_messages.value)
 }
 
-// 如果是测试模式或者有chatID，就获取聊天记录
-// 既不是测试模式，也没有chatID，就不获取聊天记录 (这个是新建聊天的情况，不需要获取聊天记录)
-if (props.isTestMode || chatID) {
-  fetchChatHistory()
-} else {
-  // initCoverText.value = ''
-  isShowInitCover.value = true
-  // initCoverText.value = text
+const fetchFilesetId = async () => {
+  // 获取fileset_id
+  const { data } = await getFilesetIdAxios({
+    appset_id: appID,
+    chat_id: chatID,
+    is_test_mode: props.isTestMode
+  })
+  // 如果有fileset_id，就赋值给fileset_id
+  if (data.fileset_id) {
+    fileset_id.value = data.fileset_id
+    // console.log('fileset_id', fileset_id.value)
+    fileList.value = data.files
+  }
 }
 
 // messages -> 问答对话集合
@@ -242,7 +335,8 @@ const sendMessage = (query) => {
       query: query,
       appset_id: appID,
       chat_id: chatID,
-      is_test_mode: props.isTestMode
+      is_test_mode: props.isTestMode,
+      fileset_id: fileset_id.value
     }),
     signal: ctrl.value.signal,
     openWhenHidden: true, // 在调用失败时禁止重复调用
@@ -318,27 +412,53 @@ const scrollToBottom = () => {
   }
 }
 
+// 重要逻辑：判断是测试模式/新建聊天/历史聊天 3种情况
+// 如果是测试模式或者有chatID，就获取聊天记录
+// 既不是测试模式，也没有chatID，就不获取聊天记录 (这个是新建聊天的情况，不需要获取聊天记录)
+// if (props.isTestMode || chatID) {
+//   fetchChatHistory()
+// } else {
+//   // initCoverText.value = ''
+//   isShowInitCover.value = true
+//   // initCoverText.value = text
+//   fileset_id.value = crypto.randomUUID()
+// }
+
 // 监听路由变化，重新加载组件
 watch(
   () => route.query.chatID,
-  (newChatID, oldChatID) => {
-    if (newChatID !== oldChatID) {
+  async (newChatID, oldChatID) => {
+    console.log(props.isTestMode, '测试模式')
+    if (newChatID !== oldChatID || props.isTestMode) {
       // 触发组件重新加载逻辑
       console.log('Chat ID changed from', oldChatID, 'to', newChatID)
       // 清空本轮（未刷新界面）对话产生的记录
       messages.value = []
       appID = route.params.appID
       chatID = route.query.chatID
+      if (oldChatID === undefined && newChatID) {
+        // new_chat_set模式 从undefined到有值
+        await associateChatsetToFilesetAxios({
+          chatset_id: chatID,
+          fileset_id: fileset_id.value
+        })
+      } else {
+        // 上面的if判断是新建聊天的情况，不需要清空文件列表
+        // 清空文件列表
+        fileList.value = []
+      }
       if (props.isTestMode || chatID) {
         // 获取历史聊天记录 (测试模式或者有chatID)
         fetchChatHistory() // 获取聊天记录
+        fetchFilesetId() // 获取fileset_id
       } else {
         // 清空历史记录 (新建聊天)
         history_messages.value = [] // 清空聊天记录
         isShowInitCover.value = true
       }
     }
-  }
+  },
+  { immediate: true }
 )
 
 // 当组件销毁时停止观察
@@ -405,12 +525,33 @@ onUnmounted(() => {
   }
 }
 
+.chat-container-bottom {
+  /* display: flex;
+  align-items: center; */
+  /* padding: 10px; */
+  /* background-color: #f1f1f1; */
+  width: 70%;
+  margin: 0 auto; /* 居中对齐 */
+}
+
+.upload-container {
+  padding: 10px 0;
+}
+
+:deep(.el-upload .el-upload-dragger) {
+  padding: 0px;
+  border: 1px;
+}
+/* 
+:deep(.el-upload .el-upload-dragger:hover) {
+  border: 1px solid #409eff;
+} */
+
 .input-container {
   display: flex;
   align-items: center;
   margin: 10px auto; /* 居中对齐 */
   margin-top: auto; /* 将输入框放置在底部 */
-  width: 70%;
 }
 
 .input-container button {

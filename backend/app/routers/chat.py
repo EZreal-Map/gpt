@@ -7,10 +7,11 @@ import json
 from utils.retrieval import retrieval_similarity_search
 from typing import Dict, List
 from langchain_core.messages import HumanMessage, AIMessage
-from models.models import APPSet, ChatSet, ChatHistory
+from models.models import APPSet, ChatSet, ChatHistory, FileSet
 from utils.templates import retrieval_template, title_template
 from utils.authenticate import is_user_logged_in
 from routers.dataset import PrivacyEnum
+from tortoise.exceptions import DoesNotExist
 
 from dotenv import load_dotenv
 
@@ -111,6 +112,7 @@ class QueryModel(BaseModel):
     appset_id: str = Field(..., description="APPSet的ID，确认模型参数与检索参数")
     chat_id: str = Field(None, description="ChatSet的ID，可选, 用来查询历史对话上下文")
     is_test_mode: bool = Field(False, description="是否为测试模式")
+    fileset_id: str = Field(None, description="FileSet的ID，可选, 用来查询历史对话上下文")
 
 
 # 创建一个FastAPI路由来处理流式响应
@@ -134,6 +136,15 @@ async def retrieval_chat(request: Request, query_body: QueryModel):
         for dataset in appset.datasets
         if dataset.privacy == PrivacyEnum.PUBLIC.value
     ]
+    # 查询fileset_id 有没有fileset，如果有代表有files需要检索
+    try:
+        fileset = await FileSet.get(id=query_body.fileset_id)  # 通过 fileset_id 查询数据库
+        dataset_ids.append(fileset.id)  # 将 fileset_id 添加到 dataset_ids 中
+    except DoesNotExist:
+        print("fileset_id 不存在，不需要检索文件")
+    
+
+
     # 使用 retrieval_similarity_search 函数检索相关文档 检索能力
     docs_and_scores = retrieval_similarity_search(
         dataset_ids, query_body.query, appset.citation_limit, appset.min_relevance

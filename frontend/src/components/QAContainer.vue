@@ -230,6 +230,7 @@ const addChatHistory = async (execute_time) => {
 
   if (response.data.chat_set_mode === 'new_chat_set') {
     console.log('进入new-chat-set')
+
     // 聊天列表添加新填的聊天记录，使用默认的名字 (new chat)
     await props.fetchChatSetsData() // 调用父亲的父亲的方法，刷新聊天列表
 

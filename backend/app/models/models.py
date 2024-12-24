@@ -87,3 +87,23 @@ class AdminUser(Model):
     username = fields.CharField(max_length=255, unique=True)
     hashed_password = fields.CharField(max_length=255)
     created_at = fields.DatetimeField(auto_now_add=True)
+
+
+class File(Model):
+    id = fields.UUIDField(pk=True)
+    filename = fields.CharField(max_length=255)
+    fileset_id = fields.ForeignKeyField(
+        "models.FileSet", related_name="files", on_delete=fields.CASCADE
+    )
+    create_time = fields.DatetimeField(auto_now_add=True)
+
+
+class FileSet(Model):
+    id = fields.UUIDField(pk=True)
+    chat_id = fields.OneToOneField(
+        "models.ChatSet", related_name="file_set", on_delete=fields.SET_NULL, null=True
+    )
+    create_time = fields.DatetimeField(auto_now_add=True)
+    appset_id = fields.ForeignKeyField(
+        "models.APPSet", related_name="file_set", on_delete=fields.CASCADE
+    )

@@ -1,7 +1,9 @@
 from fastapi import APIRouter, HTTPException, Path, Query, Body
 from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any, List
-from models.models import APPSet, ChatSet, ChatHistory, Article
+from models.models import APPSet, ChatSet, ChatHistory, Article, FileSet
+from routers.fileset import fileset_dir
+import shutil
 
 
 # 创建一个APIRouter实例
@@ -48,6 +50,7 @@ async def add_test_chat_history(chat_history: ChatHistoryCreate):
     # 查询指定的 APPSet
     appset = await APPSet.filter(id=chat_history.appset_id).first()
     if not appset:
+        print("未找到指定的 APPSet")
         raise HTTPException(status_code=404, detail="未找到指定的 APPSet")
 
     # 如果提供了 chat_id，使用对应的 ChatSet
@@ -55,6 +58,7 @@ async def add_test_chat_history(chat_history: ChatHistoryCreate):
         chat_set = await ChatSet.filter(id=chat_history.chat_id).first()
         chat_set_mode = "old_chat_set"
         if not chat_set:
+            print("未找到指定的 ChatSet")
             raise HTTPException(status_code=404, detail="未找到指定的 ChatSet")
     else:
         if chat_history.is_test_mode:
@@ -62,6 +66,7 @@ async def add_test_chat_history(chat_history: ChatHistoryCreate):
             chat_set = await ChatSet.filter(app_id=appset, is_test=True).first()
             chat_set_mode = "test_chat_set"
             if not chat_set:
+                print("未找到测试 ChatSet")
                 raise HTTPException(status_code=404, detail="未找到测试 ChatSet")
         else:
             # 创建新的 ChatSet, is_test 设置为 False
@@ -86,7 +91,9 @@ async def add_test_chat_history(chat_history: ChatHistoryCreate):
     for cite_document in cite_documents:
         article = await Article.get_or_none(id=cite_document["metadata"]["article_id"])
         if not article:
-            raise HTTPException(status_code=404, detail="未找到指定的 Article")
+            # raise HTTPException(status_code=404, detail="未找到指定的 Article")
+            # 因为引用记录可能是fileset里面的files，所以不一定是 Article
+            continue
         article.recall_count += 1
         await article.save()
 
@@ -212,6 +219,17 @@ async def delete_chatset(chat_id: str = Path(..., description="ChatSet 的 ID"))
     if not chatset:
         raise HTTPException(status_code=404, detail="未找到指定的 ChatSet")
 
+    # 删除文件夹及其所有内容
+    # 获取与 ChatSet 相关联的 FileSet
+    fileset = await FileSet.get_or_none(chat_id=chat_id)
+    if fileset:
+        fileset_id = str(fileset.id)
+        app_folder = fileset_dir / fileset_id
+        if app_folder.exists() and app_folder.is_dir():
+            print(f"删除文件夹及其内容: {app_folder}")
+            shutil.rmtree(app_folder)  # 删除文件夹及其所有内容
+    
     # 删除 ChatSet
     await chatset.delete()
+    
     return {"detail": "ChatSet 删除成功"}
