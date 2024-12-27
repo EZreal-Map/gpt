@@ -11,6 +11,7 @@ from routers.chatset import chatset_router
 from routers.chat_history import chat_history_router
 from routers.user import user_router
 from routers.fileset import fileset_router
+from routers.audio import audio_router
 from fastapi.middleware.cors import CORSMiddleware
 from utils.authenticate import get_current_user
 from dotenv import load_dotenv
@@ -62,6 +63,8 @@ app.include_router(chat_history_router, prefix="/chat_history")
 app.include_router(user_router)
 # fileset存储 有关路由
 app.include_router(fileset_router, prefix="/fileset")
+# 语音识别，语音生成 有关路由
+app.include_router(audio_router)
 if __name__ == "__main__":
     import uvicorn
 

@@ -15,7 +15,7 @@ services:
       - gpt_network  # 连接到自定义网络
 
   mysql:
-    image: mysql:5.7.27  # 使用指定版本的 MySQL 镜像
+    image: mysql:8.0.35  # 使用指定版本的 MySQL 镜像
     container_name: gpt-mysql  # 设置容器名称
     ports:
       - 9011:3306  # 将容器的3306端口映射到宿主机的9011端口

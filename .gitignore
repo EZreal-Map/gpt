@@ -41,6 +41,7 @@ packages
 document
 temp
 fileset
+audio
 # vectorstore
 chroma-data
 

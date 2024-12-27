@@ -80,6 +80,7 @@
         multiple
         drag
         :before-remove="beforeRemove"
+        :on-success="fetchFilesetId"
       >
         <div
           class="upload-icon-container"
@@ -138,6 +139,7 @@
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { fetchEventSource } from '@microsoft/fetch-event-source'
 import { baseURL } from '@/utils/request.js'
+import { sttWSURL } from '@/utils/ws.js'
 import QAContainer from '@/components/QAContainer.vue'
 import { Top, CircleClose, UploadFilled } from '@element-plus/icons-vue'
 import { useRoute } from 'vue-router'
@@ -171,6 +173,13 @@ const beforeRemove = async (uploadFile) => {
     })
 
     try {
+      ElMessage.success('正在删除...') // 提示正在删除
+      if (uploadFile.id === undefined) {
+        // 如果文件没有id，在刚上传，没有刷新重新加载，会出现没有id的正常情况
+        // 访问接口获取fileset_id
+        const files = await fetchFilesetId() // 获取fileset_id
+        uploadFile.id = files.find((file) => file.name === uploadFile.name).id
+      }
       const response = await deleteFileByFileIdAxios(uploadFile.id)
       ElMessage.success(response.data.message) // 提示删除成功
       // ElMessage.success('删除成功') // 提示删除成功
@@ -269,8 +278,10 @@ const fetchFilesetId = async () => {
   if (data.fileset_id) {
     fileset_id.value = data.fileset_id
     // console.log('fileset_id', fileset_id.value)
-    fileList.value = data.files
+    // fileList.value = data.files
+    return data.files
   }
+  return []
 }
 
 // messages -> 问答对话集合
@@ -450,7 +461,8 @@ watch(
       if (props.isTestMode || chatID) {
         // 获取历史聊天记录 (测试模式或者有chatID)
         fetchChatHistory() // 获取聊天记录
-        fetchFilesetId() // 获取fileset_id
+        const files = await fetchFilesetId() // 获取fileset_id
+        fileList.value = files
       } else {
         // 清空历史记录 (新建聊天)
         history_messages.value = [] // 清空聊天记录
@@ -466,6 +478,119 @@ onUnmounted(() => {
   if (observer.value) {
     observer.value.disconnect()
   }
+})
+
+// 语音识别代码
+// 数据定义
+const recognizedText = ref('')
+const oldText = ref('')
+const isRecording = ref(false)
+let ws = null
+let recorder = null
+
+// WebSocket 初始化函数
+const initWebSocket = () => {
+  ws = new WebSocket(sttWSURL)
+
+  ws.onopen = () => {
+    console.log('WebSocket 连接成功')
+    // 记录文本框已有的值
+    oldText.value = newQuery.value
+  }
+
+  ws.onmessage = (event) => {
+    const data = JSON.parse(event.data)
+    console.log('WebSocket 收到消息', data)
+
+    if (recognizedText.value !== data.text) {
+      recognizedText.value = data.text // 更新识别结果
+      newQuery.value = oldText.value + recognizedText.value
+    } else {
+      console.log('识别结果未发生变化')
+      stopRecording()
+    }
+  }
+
+  ws.onclose = () => {
+    console.log('WebSocket 已关闭')
+  }
+
+  ws.onerror = (error) => {
+    console.error('WebSocket 发生错误', error)
+  }
+}
+
+// 初始化录音
+const startRecording = async () => {
+  if (isRecording.value) return
+
+  initWebSocket()
+
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+  const audioContext = new (window.AudioContext || window.webkitAudioContext)({
+    sampleRate: 16000 // 设置采样率
+  })
+
+  await audioContext.audioWorklet.addModule('/audio-processor.js') // 注册模块
+
+  const source = audioContext.createMediaStreamSource(stream)
+  const processor = new AudioWorkletNode(audioContext, 'audio-processor')
+
+  processor.port.onmessage = (event) => {
+    if (isRecording.value && ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(event.data) // 发送 Int16Array 数据
+    }
+  }
+
+  source.connect(processor)
+  processor.connect(audioContext.destination)
+
+  recorder = { audioContext, processor, stream }
+  isRecording.value = true
+  ElMessage.success('开始语音识别')
+}
+
+// 停止录音
+const stopRecording = () => {
+  if (!isRecording.value) return
+
+  recorder.processor.disconnect()
+  recorder.audioContext.close()
+  recorder.stream.getTracks().forEach((track) => track.stop())
+
+  if (ws) {
+    ws.close()
+  }
+
+  isRecording.value = false
+  console.log('录音停止')
+  ElMessage.success('结束语音识别')
+}
+
+// 监听键盘按键 F 来启动和停止录音
+const handleKeydown = (event) => {
+  if (event.key === 'f' || event.key === 'F') {
+    if (
+      event.target.tagName !== 'INPUT' &&
+      event.target.tagName !== 'TEXTAREA'
+    ) {
+      if (isRecording.value) {
+        stopRecording()
+      } else {
+        startRecording()
+      }
+    }
+  }
+}
+
+// 在组件挂载时添加事件监听
+window.addEventListener('keydown', handleKeydown)
+
+// 组件卸载时清理资源
+onUnmounted(() => {
+  if (isRecording.value) stopRecording()
+  if (ws) ws.close()
+  window.removeEventListener('keydown', handleKeydown) // 卸载时移除事件监听
 })
 </script>
 

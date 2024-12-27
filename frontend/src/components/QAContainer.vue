@@ -48,6 +48,10 @@
                   <el-dropdown-item @click="retryAnswer"
                     ><el-icon><Refresh /></el-icon
                   ></el-dropdown-item>
+                  <el-dropdown-item @click="toggleAudio">
+                    <el-icon v-if="isPlaying"><Mute /></el-icon>
+                    <el-icon v-else><Microphone /></el-icon>
+                  </el-dropdown-item>
                 </el-dropdown-menu>
               </template> </el-dropdown
           ></span>
@@ -127,14 +131,18 @@ import { MdPreview } from 'md-editor-v3'
 import 'md-editor-v3/lib/preview.css'
 import RetrievalList from '@/components/RetrievalList.vue'
 import { addChatHistoryAxios, deleteChatHistoryAxios } from '@/api/chatset.js'
+import { ttsWSURL } from '@/utils/ws.js'
 import { useRoute, useRouter } from 'vue-router'
 import {
   MoreFilled,
   CopyDocument,
   Delete,
-  Refresh
+  Refresh,
+  Microphone,
+  Mute
 } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import PCMPlayer from 'pcm-player' // 浏览器麦克风
 
 // 跳转路由
 const router = useRouter()
@@ -368,6 +376,89 @@ const retryAnswer = async () => {
   emits('update:messages', newMessages)
   // 再使用同样的问题重新回答
   props.sendMessage(props.question)
+}
+
+// 播放音频功能
+let pcmPlayer = null // 用于存储播放器实例
+let socket = null // 用于存储 WebSocket 实例
+
+const isPlaying = ref(false)
+
+const toggleAudio = () => {
+  isPlaying.value = !isPlaying.value
+  if (isPlaying.value) {
+    // 开始播放音频
+    startAudioStream()
+    console.log('开始播放音频')
+  } else {
+    // 停止播放音频
+    stopAudioStream()
+    console.log('停止播放音频')
+  }
+}
+
+const startAudioStream = () => {
+  let flag = true
+  if (!props.answer) {
+    console.error('文本为空，无法生成语音！')
+    return
+  }
+  ElMessage.success('正在合成语音')
+  // 初始化 PCMPlayer
+  pcmPlayer = new PCMPlayer({
+    encoding: '16bitInt', // PCM 格式为 16 位整数
+    channels: 1, // 声道数（单声道或双声道，根据音频文件设置）
+    sampleRate: 16000, // 采样率（与音频文件匹配）
+    flushTime: 200 // 缓冲时间
+  })
+
+  // 建立 WebSocket 连接
+  socket = new WebSocket(ttsWSURL)
+
+  // 设置接收数据的类型为 ArrayBuffer
+  socket.binaryType = 'arraybuffer'
+
+  // 发送文本数据到后端
+  socket.onopen = () => {
+    socket.send(props.answer) // 发送文本数据到后端
+  }
+
+  // 处理二进制音频数据
+  socket.onmessage = (event) => {
+    if (event.data instanceof ArrayBuffer) {
+      if (flag) {
+        ElMessage.success('开始播放语音')
+        flag = false
+      }
+      pcmPlayer.feed(new Uint8Array(event.data)) // 将数据传递给 pcm-player 播放
+    }
+  }
+
+  // 关闭 WebSocket
+  socket.onclose = () => {
+    console.log('音频流已关闭')
+  }
+
+  socket.onerror = (error) => {
+    console.error('WebSocket 错误:', error)
+  }
+}
+
+const stopAudioStream = () => {
+  // 停止 PCM 播放
+  if (pcmPlayer) {
+    ElMessage.warning('已停止播放语音')
+    pcmPlayer.destroy()
+    pcmPlayer = null
+    console.log('PCM 播放已停止')
+  }
+
+  // 关闭 WebSocket 连接
+  if (socket) {
+    socket.close()
+    socket = null
+    console.log('WebSocket 连接已关闭')
+  }
 }
 </script>
 

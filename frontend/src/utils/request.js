@@ -3,8 +3,11 @@ import axios from 'axios'
 import { ElMessage } from 'element-plus'
 import router from '@/router'
 
-const baseURL = 'http://127.0.0.1:7979' // 开发环境
-// const baseURL = '/api' // 生产环境
+// 根据不同的环境设置 baseURL
+const baseURL =
+  import.meta.env.MODE === 'development'
+    ? 'http://127.0.0.1:7979' // 开发环境
+    : '/api' // 生产环境
 
 const instance = axios.create({
   baseURL, // TODO 1. 基础地址，超时时间

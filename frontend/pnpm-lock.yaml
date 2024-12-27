@@ -23,6 +23,9 @@ importers:
       md-editor-v3:
         specifier: ^4.17.3
         version: 4.17.3(@codemirror/view@6.28.4)(@lezer/common@1.2.1)(vue@3.4.15)
+      pcm-player:
+        specifier: ^0.0.18
+        version: 0.0.18
       pinia:
         specifier: ^2.1.7
         version: 2.1.7(vue@3.4.15)
@@ -1177,6 +1180,9 @@ packages:
 
   pathe@1.1.2:
     resolution: {integrity: sha512-whLdWMYL2TwI08hn8/ZqAbrVemu0LNaNNJZX73O6qaIdCTfXutsLhMkjdENX0qhsQ9uIimo4/aQOmXkoon2nDQ==}
+
+  pcm-player@0.0.18:
+    resolution: {integrity: sha512-kRamagzBRlcLORBlLxb4UADPwqyGOiGgkzhZsIwtMGS7n6Hlp7h44PaEL8TIybzSkyMcIvvsQjUCuphW+aeDkg==}
 
   picocolors@1.0.0:
     resolution: {integrity: sha512-1fygroTLlHu66zi26VoTDv8yRgm0Fccecssto+MhsZ0D/DGW2sm8E8AjW7NU5VVTRt5GxbeZ5qBuJr+HyLYkjQ==}
@@ -2778,6 +2784,8 @@ snapshots:
   path-parse@1.0.7: {}
 
   pathe@1.1.2: {}
+
+  pcm-player@0.0.18: {}
 
   picocolors@1.0.0: {}
 
