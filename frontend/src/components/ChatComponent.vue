@@ -80,7 +80,7 @@
         multiple
         drag
         :before-remove="beforeRemove"
-        :on-success="fetchFilesetId"
+        :on-preview="handlePreview"
       >
         <div
           class="upload-icon-container"
@@ -151,6 +151,7 @@ import {
   getFilesetIdAxios,
   deleteFileByFileIdAxios
 } from '@/api/fileset.js'
+import { getDownloadDocumentAxios } from '@/api/dataset.js'
 import { useTokenStore } from '@/stores/token.js'
 
 const fileList = ref([])
@@ -193,6 +194,16 @@ const beforeRemove = async (uploadFile) => {
     ElMessage.info('已取消删除') // 提示取消删除
     return false
   }
+}
+
+const handlePreview = async (uploadFile) => {
+  if (uploadFile.id === undefined) {
+    // 如果文件没有id，在刚上传，没有刷新重新加载，会出现没有id的正常情况
+    // 访问接口获取fileset_id
+    const files = await fetchFilesetId() // 获取fileset_id
+    uploadFile.id = files.find((file) => file.name === uploadFile.name).id
+  }
+  getDownloadDocumentAxios(uploadFile.id)
 }
 
 const fileset_id = ref(crypto.randomUUID()) // 文件ID
@@ -354,6 +365,10 @@ const sendMessage = (query) => {
     onmessage(event) {
       // 接收到消息回调 （多次）
       // console.log(event)
+      if (!event.event) {
+        // 跳过空消息，无效消息，避免下面继续解析报错
+        return
+      }
       const data = JSON.parse(event.data)
       // console.log(data)
       if (event.event === 'message') {
@@ -372,11 +387,12 @@ const sendMessage = (query) => {
     onerror(err) {
       //连接出现异常回调
       // 必须抛出错误才会停止
-      ElMessage.error('回答出现问题，请重试')
+      ElMessage.error('回答出现问题，请重试,error:' + err)
       if (messages.value[messages.value.length - 1]?.isConnecting) {
         messages.value[messages.value.length - 1].isConnecting = false
       }
       ctrl.value.abort() // 终止连接
+      console.error('Connection error:', err)
       throw err
     }
   })

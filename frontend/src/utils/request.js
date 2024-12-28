@@ -54,6 +54,12 @@ instance.interceptors.response.use(
     } else if (err.response?.status === 500) {
       // 处理500错误，例如显示服务端错误提示
       ElMessage({ message: '服务器错误', type: 'error' })
+    } else if (err.response?.status === 410) {
+      // 处理410错误，表示文件下载失败
+      ElMessage({
+        message: '上传文件已被删除，无法继续下载',
+        type: 'error'
+      })
     }
 
     return Promise.reject(err)

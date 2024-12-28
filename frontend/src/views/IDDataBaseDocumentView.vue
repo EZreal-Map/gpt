@@ -99,11 +99,7 @@ const calculateMaxHeight = () => {
 
 // 下载文件操作
 const downloadFile = (doucmentID) => {
-  try {
-    getDownloadDocumentAxios(doucmentID)
-  } catch (error) {
-    console.error('下载文件时出错：', error)
-  }
+  getDownloadDocumentAxios(doucmentID)
 }
 
 // 路由跳转相关 跳转到文档详情页

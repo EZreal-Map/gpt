@@ -19,10 +19,11 @@
         <a
           href="#"
           class="citation-filename"
-          v-for="filename in uniqueFilenames"
-          :key="filename"
+          v-for="articleCite in uniqueArticleCite"
+          :key="articleCite"
+          @click="getDownloadDocumentAxios(articleCite.article_id)"
         >
-          {{ filename }}
+          {{ articleCite.filename }}
         </a>
         <div class="citation-buttons">
           <span class="citation-document" @click="showDocumentModalFunction"
@@ -32,29 +33,18 @@
             >{{ contextCount }}条上下文</span
           >
           <span class="citation-execute-time">{{ parentExecuteTime }}s</span>
-          <span class="citation-more"
-            ><el-dropdown>
-              <span class="el-dropdown-link">
-                <el-icon size="20"><MoreFilled /></el-icon>
-              </span>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item @click="copyToClipboard(answer)"
-                    ><el-icon><CopyDocument /></el-icon
-                  ></el-dropdown-item>
-                  <el-dropdown-item @click="deleteChatHistory"
-                    ><el-icon><Delete /></el-icon
-                  ></el-dropdown-item>
-                  <el-dropdown-item @click="retryAnswer"
-                    ><el-icon><Refresh /></el-icon
-                  ></el-dropdown-item>
-                  <el-dropdown-item @click="toggleAudio">
-                    <el-icon v-if="isPlaying"><Mute /></el-icon>
-                    <el-icon v-else><Microphone /></el-icon>
-                  </el-dropdown-item>
-                </el-dropdown-menu>
-              </template> </el-dropdown
-          ></span>
+          <span class="citation-more">
+            <!-- <el-icon size="20"><MoreFilled /></el-icon> -->
+            <el-icon size="20" @click="copyToClipboard(answer)"
+              ><CopyDocument
+            /></el-icon>
+            <el-icon size="20" @click="deleteChatHistory"><Delete /></el-icon>
+            <el-icon size="20" @click="retryAnswer"><Refresh /></el-icon>
+            <div @click="toggleAudio">
+              <el-icon size="20" v-if="isPlaying"><Mute /></el-icon>
+              <el-icon size="20" v-else><Microphone /></el-icon>
+            </div>
+          </span>
         </div>
         <!-- <div>{{ citeDocument }}</div> -->
       </div>
@@ -134,7 +124,6 @@ import { addChatHistoryAxios, deleteChatHistoryAxios } from '@/api/chatset.js'
 import { ttsWSURL } from '@/utils/ws.js'
 import { useRoute, useRouter } from 'vue-router'
 import {
-  MoreFilled,
   CopyDocument,
   Delete,
   Refresh,
@@ -143,6 +132,7 @@ import {
 } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import PCMPlayer from 'pcm-player' // 浏览器麦克风
+import { getDownloadDocumentAxios } from '@/api/dataset.js'
 
 // 跳转路由
 const router = useRouter()
@@ -200,12 +190,23 @@ watch(
   { deep: true }
 )
 
-// 使用 computed 属性提取并确保唯一的 filename 列表
-const uniqueFilenames = computed(() => {
-  // 提取 filename 字段
-  const filenames = props.citeDocument.map((doc) => doc.metadata.filename)
-  // 使用 Set 去重
-  return Array.from(new Set(filenames))
+// 使用 computed 属性提取并确保基于 article_id 去重
+const uniqueArticleCite = computed(() => {
+  // 使用一个对象来存储每个 article_id 对应的唯一 filename
+  const filenamesMap = {}
+
+  props.citeDocument.forEach((doc) => {
+    // 如果该 article_id 没有出现过，添加到 filenamesMap
+    if (!filenamesMap[doc.metadata.article_id]) {
+      filenamesMap[doc.metadata.article_id] = {
+        filename: doc.metadata.filename,
+        article_id: doc.metadata.article_id
+      }
+    }
+  })
+
+  // 将对象的值转为数组
+  return Object.values(filenamesMap)
 })
 
 // 使用 computed 属性计算 引用的document数量
@@ -565,12 +566,11 @@ const stopAudioStream = () => {
 
 .citation-more {
   display: flex;
-  justify-content: center; /* 将Flex容器内的项目水平居中。 */
-  align-items: center; /* 将Flex容器内的项目垂直居中。 */
 }
 
-.el-dropdown-link:focus-visible {
-  outline: unset; /* 去除默认的轮廓线 */
+.citation-more .el-icon {
+  margin-left: 10px;
+  cursor: pointer;
 }
 
 /* 全屏模态弹窗 */

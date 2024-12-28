@@ -15,7 +15,9 @@
     <div class="test-result-footer">
       <div class="test-result-footer-left">
         <el-tooltip content="点击下载源文件" placement="bottom" effect="light">
-          <span>{{ result.metadata.filename }}</span>
+          <span @click="downloadFile(result.metadata.article_id)">{{
+            result.metadata.filename
+          }}</span>
         </el-tooltip>
         <el-tooltip
           content="文件内文段编号/总文段数"
@@ -39,15 +41,19 @@
 
 <script setup>
 // import { ref } from 'vue'
+import { getDownloadDocumentAxios } from '@/api/dataset.js'
 
 // 从父组件接收的props
-const props = defineProps({
+defineProps({
   result: Object,
   editBox: Function,
   index: Number
 })
 
-console.log(props)
+// 下载文件操作
+const downloadFile = (doucmentID) => {
+  getDownloadDocumentAxios(doucmentID)
+}
 </script>
 
 <style scoped>

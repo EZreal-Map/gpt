@@ -22,8 +22,8 @@ class Config:
                 # 'engine': 'tortoise.backends.asyncpg',  PostgreSQL
                 "engine": "tortoise.backends.mysql",  # MySQL or Mariadb
                 "credentials": {
-                    # "host": "localhost",  # 开发环境
-                    "host": "mysql",  # 生产环境
+                    "host": "localhost",  # 开发环境
+                    # "host": "mysql",  # 生产环境
                     "port": "3306",
                     "user": "root",
                     "password": "1209",
@@ -45,8 +45,8 @@ class Config:
         "timezone": "Asia/Shanghai",
     }
 
-    # CHROMA = {"host": "localhost", "port": 9786}  # 开发环境
-    CHROMA = {"host": "chroma", "port": 8000}  # 生产环境
+    CHROMA = {"host": "localhost", "port": 9786}  # 开发环境
+    # CHROMA = {"host": "chroma", "port": 8000}  # 生产环境
 
 
 settings = Config()

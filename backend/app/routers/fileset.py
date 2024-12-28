@@ -204,6 +204,12 @@ async def delete_file_by_id(file_id: str):
                 # print(f"删除文档数据: {chunk_id}")
                 vectorstore.delete(chunk_id)  # 删除文档数据
 
+            # 删除文件夹中的文件
+            name = file.filename
+            file_path = pathlib.Path(f"static/fileset/{fileset_id}/{name}")
+            if file_path.exists():
+                file_path.unlink()
+
             # 事务中的所有操作成功时，自动提交
             return {"message": "文件删除成功"}
 

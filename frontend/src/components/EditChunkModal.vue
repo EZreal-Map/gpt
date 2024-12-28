@@ -148,11 +148,13 @@ const saveEdit = async () => {
           })
         )
       } else {
+        isloading.value = false
         ElMessage.error('保存失败')
       }
     } catch (error) {
       console.error('Error updating chunk:', error)
       ElMessage.error('保存失败')
+      isloading.value = false
     }
   }
 }

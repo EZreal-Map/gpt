@@ -67,7 +67,6 @@ const parseFilenameFromContentDisposition = (contentDisposition) => {
   return 'download.pdf' // 如果未找到合适的匹配，返回 null 或者适当的默认值
 }
 
-// 下载指定一条文档
 export const getDownloadDocumentAxios = async (documentID) => {
   const response = await request.get(`/dataset/download-file/${documentID}`, {
     responseType: 'blob' // 设置响应类型为 blob
@@ -75,21 +74,49 @@ export const getDownloadDocumentAxios = async (documentID) => {
 
   // 从响应头中尝试获取文件名
   const contentDisposition = response.headers['content-disposition']
-  console.log('contentDisposition:', contentDisposition)
   const filename = parseFilenameFromContentDisposition(contentDisposition)
 
-  // 创建一个虚拟的下载链接
-  const url = window.URL.createObjectURL(new Blob([response.data]))
-  const link = document.createElement('a')
-  link.href = url
-  link.setAttribute('download', filename)
+  // 判断文件是否是 PDF 格式（通过文件名后缀判断）
+  const isPdf = filename.toLowerCase().endsWith('.pdf')
 
-  // 将虚拟链接添加到页面中并点击
-  document.body.appendChild(link)
-  link.click()
+  if (isPdf) {
+    // 如果是 PDF 文件，通过 object 或 iframe 显示
+    const url = window.URL.createObjectURL(
+      new Blob([response.data], { type: 'application/pdf' })
+    )
 
-  // 下载完成后移除虚拟链接
-  document.body.removeChild(link)
+    // 直接跳转到新的页面
+    const newWindow = window.open('', '_blank')
+
+    // 设置新页面的内容
+    newWindow.document.write(`
+      <html>
+        <head>
+          <title>PDF Viewer</title>
+          <style>
+            body { margin: 0; padding: 0; height: 100vh; overflow: hidden; }
+            iframe { width: 100%; height: 100%; border: none; }
+          </style>
+        </head>
+        <body>
+          <iframe src="${url}" width="100%" height="100%"></iframe>
+        </body>
+      </html>
+    `)
+  } else {
+    // 如果不是 PDF 文件，创建虚拟链接进行下载
+    const url = window.URL.createObjectURL(new Blob([response.data]))
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', filename)
+
+    // 将虚拟链接添加到页面中并点击
+    document.body.appendChild(link)
+    link.click()
+
+    // 下载完成后移除虚拟链接
+    document.body.removeChild(link)
+  }
 }
 
 // 删除指定一条文档

@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Body, Query
-from models.models import DataSet, Article, QueryTestHistory
+from models.models import DataSet, Article, QueryTestHistory, File
 from pydantic import BaseModel, validator
 from typing import List, Optional, Union
 from uuid import UUID
@@ -317,20 +317,32 @@ async def download_file(article_id: UUID):
     :return: 文件响应
     """
     article = await Article.get_or_none(id=article_id)
-    if not article:
-        raise HTTPException(status_code=404, detail="Document not found")
+    # 先去 Article 表中查找，如果没有再去 File 表中查找
+    # Article 表是通过知识库创建的，File（新增的） 表是通过上传文件创建的
+    if article:
+        # 获取文章对应的数据集ID的实体，一定要加 await，要不然查询不到
+        dataset = await article.dataset_id
+        dataset_id = (
+            dataset.id
+        )  # ForeignKeyField creates an attribute with _id suffix for the actual field value
+        name = article.name
+        file_path = Path(f"static/document/{dataset_id}/{name}")
 
-    # 获取文章对应的数据集ID的实体，一定要加 await，要不然查询不到
-    dataset = await article.dataset_id
+        if not file_path.exists():
+            print("file_path", file_path)
+            raise HTTPException(status_code=410, detail="上传文件已被删除，无法继续下载")
+    else:
+        file = await File.get_or_none(id=article_id)
+        if not file:
+            raise HTTPException(status_code=410, detail="上传文件已被删除，无法继续下载")
+        fileset_id = file.fileset_id_id
+        name = file.filename
+        file_path = Path(f"static/fileset/{fileset_id}/{name}")
+            # 检查文件是否存在
+        if not file_path.exists():
+            print("file_path", file_path)
+            raise HTTPException(status_code=410, detail="上传文件已被删除，无法继续下载")
 
-    dataset_id = (
-        dataset.id
-    )  # ForeignKeyField creates an attribute with _id suffix for the actual field value
-    name = article.name
-    file_path = Path(f"static/document/{dataset_id}/{name}")
-
-    if not file_path.exists():
-        raise HTTPException(status_code=404, detail="File not found")
 
     response = FileResponse(file_path, filename=name)
     # 设置需要暴露的响应头
