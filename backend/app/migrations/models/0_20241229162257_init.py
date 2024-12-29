@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS `fileset` (
     `appset_id_id` CHAR(36) NOT NULL,
     `chat_id_id` CHAR(36)  UNIQUE,
     CONSTRAINT `fk_fileset_appset_17495ff5` FOREIGN KEY (`appset_id_id`) REFERENCES `appset` (`id`) ON DELETE CASCADE,
-    CONSTRAINT `fk_fileset_chatset_3691d5c7` FOREIGN KEY (`chat_id_id`) REFERENCES `chatset` (`id`) ON DELETE SET NULL
+    CONSTRAINT `fk_fileset_chatset_3691d5c7` FOREIGN KEY (`chat_id_id`) REFERENCES `chatset` (`id`) ON DELETE CASCADE
 ) CHARACTER SET utf8mb4;
 CREATE TABLE IF NOT EXISTS `file` (
     `id` CHAR(36) NOT NULL  PRIMARY KEY,
@@ -98,7 +98,8 @@ CREATE TABLE IF NOT EXISTS `appset_dataset` (
     `appset_id` CHAR(36) NOT NULL,
     `dataset_id` CHAR(36) NOT NULL,
     FOREIGN KEY (`appset_id`) REFERENCES `appset` (`id`) ON DELETE CASCADE,
-    FOREIGN KEY (`dataset_id`) REFERENCES `dataset` (`id`) ON DELETE CASCADE
+    FOREIGN KEY (`dataset_id`) REFERENCES `dataset` (`id`) ON DELETE CASCADE,
+    UNIQUE KEY `uidx_appset_data_appset__07d766` (`appset_id`, `dataset_id`)
 ) CHARACTER SET utf8mb4;"""
 
 

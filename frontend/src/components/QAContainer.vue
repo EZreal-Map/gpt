@@ -390,7 +390,7 @@ const toggleAudio = () => {
   if (isPlaying.value) {
     // 开始播放音频
     startAudioStream()
-    console.log('开始播放音频')
+    console.log('开始合成音频')
   } else {
     // 停止播放音频
     stopAudioStream()
@@ -410,7 +410,12 @@ const startAudioStream = () => {
     encoding: '16bitInt', // PCM 格式为 16 位整数
     channels: 1, // 声道数（单声道或双声道，根据音频文件设置）
     sampleRate: 16000, // 采样率（与音频文件匹配）
-    flushTime: 200 // 缓冲时间
+    flushTime: 200, // 缓冲时间
+    onended: () => {
+      console.log('播放结束')
+      isPlaying.value = false
+      ElMessage.success('已完成全部语音播放')
+    }
   })
 
   // 建立 WebSocket 连接
@@ -428,6 +433,7 @@ const startAudioStream = () => {
   socket.onmessage = (event) => {
     if (event.data instanceof ArrayBuffer) {
       if (flag) {
+        // 第一次接收到数据时，提示开始播放语音
         ElMessage.success('开始播放语音')
         flag = false
       }
@@ -437,7 +443,7 @@ const startAudioStream = () => {
 
   // 关闭 WebSocket
   socket.onclose = () => {
-    console.log('音频流已关闭')
+    console.log('wbsocket已关闭')
   }
 
   socket.onerror = (error) => {

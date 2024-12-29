@@ -228,9 +228,10 @@ const beforeRemove = async (uploadFile) => {
 const radio1 = ref('直接拆分')
 const radio2 = ref('自动')
 
+// radio2Form 表单数据 默认是1000，200，无
 const radio2Form = ref({
-  chunkLength: 500,
-  overlapLength: 100,
+  chunkLength: 1000,
+  overlapLength: 200,
   separatorCharacter: ''
 })
 

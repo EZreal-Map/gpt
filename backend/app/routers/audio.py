@@ -41,9 +41,9 @@ async def audio_endpoint(websocket: WebSocket):
         count = 0  # 用于保存音频块的数量
         start_time = time.time()
 
-        while True:
+        while websocket.client_state == WebSocketState.CONNECTED:
             data = await websocket.receive_bytes()  # 接收前端发送的二进制音频数据
-            print(f"接收到的数据大小: {len(data)} bytes")  # 输出接收的数据大小
+            # print(f"接收到的数据大小: {len(data)} bytes")  # 输出接收的数据大小
             audio_buffer.extend(data)  # 将数据添加到缓冲区
             count += 1
 
@@ -59,9 +59,7 @@ async def audio_endpoint(websocket: WebSocket):
 
     except Exception as e:
         print(f"{e}")
-    finally:
-        if os.path.exists(audio_path):  # 检查文件是否存在
-            os.remove(audio_path)  # 删除音频文件
+
 
 
 

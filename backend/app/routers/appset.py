@@ -139,16 +139,17 @@ async def delete_dataset(appset_id: UUID):
 
     # 在这里你可以根据需要对 filesets 进行一些处理，例如删除文件、文件夹等
     for fileset in filesets:
-        # 假设你需要删除与 FileSet 关联的文件夹等资源
-        # 可以在此进行操作，例如删除文件夹、向量数据库清理等
-        app_folder = fileset_dir / str(fileset.id)
-        if app_folder.exists() and app_folder.is_dir():
-            print(f"删除文件夹及其内容: {app_folder}")
-            shutil.rmtree(app_folder)  # 删除文件夹及其所有内容
-
-        # 删除与 FileSet 关联的其他数据或文档
+        # 删除 FileSet 数据库 （这里不需要删除，因为删除 APPSet 时会自动删除关联的 FileSet）
+        # await fileset.delete()
+        # 删除 FileSet 文件夹
+        fileset_id = str(fileset.id)
+        fileset_folder = fileset_dir / fileset_id
+        if fileset_folder.exists() and fileset_folder.is_dir():
+            print(f"删除文件夹及其内容: {fileset_folder}")
+            shutil.rmtree(fileset_folder)  # 删除文件夹及其所有内容
+        
+        # 删除与 FileSet 向量数据库
         load_vectorstore(fileset.id).delete_collection()
-
     
     # 删除数据库记录
     await appset.delete()

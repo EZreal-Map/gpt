@@ -297,8 +297,11 @@ const updateDataSet = async () => {
 // 模型参数相关数据
 const modelList = [
   { name: 'gpt-3.5-turbo', max_tokens: 4096, context_length: 16000 },
+  { name: 'gpt-4-turbo', max_tokens: 4096, context_length: 128000 },
+  { name: 'gpt-4o-mini', max_tokens: 4096, context_length: 128000 },
   { name: 'gpt-4o', max_tokens: 4096, context_length: 128000 },
-  { name: 'gpt-4-turbo', max_tokens: 4096, context_length: 128000 }
+  { name: 'o1-mini', max_tokens: 4096, context_length: 128000 },
+  { name: 'o1', max_tokens: 4096, context_length: 128000 }
 ]
 const isShowAISettingsModal = ref(false)
 const selectModelName = ref('')

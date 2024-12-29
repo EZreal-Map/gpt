@@ -6,7 +6,7 @@ appset_router_no_auth = APIRouter()
 
 
 # 获取指定{appset_id} APPSet 的路由
-@appset_router_no_auth.get("/{appset_id}", tags=["appset"])
+@appset_router_no_auth.get("/{appset_id}", tags=["appset_no_auth"])
 async def get_dataset(appset_id: str):
     """
     获取一个指定的APPSet

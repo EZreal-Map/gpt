@@ -78,6 +78,8 @@ async def recognize_and_send(websocket, output_path):
         # 检查 WebSocket 是否仍然连接
         if websocket.client_state == WebSocketState.CONNECTED:
             await websocket.send_json({"text": result_text})
+            if os.path.exists(output_path):  # 检查文件是否存在
+                os.remove(output_path)  # 删除音频文件
     except WebSocketDisconnect:
         print("WebSocket 连接已断开，无法发送数据")
     except Exception as e:

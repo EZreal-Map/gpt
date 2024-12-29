@@ -6,11 +6,13 @@ from utils.retrieval import PDF_to_documents, load_vectorstore
 from tortoise.exceptions import DoesNotExist
 from models.models import FileSet, File, ChatSet, APPSet
 from tortoise.transactions import in_transaction  # 导入事务
+import datetime
 
 
 # 创建一个APIRouter实例
 fileset_router = APIRouter()
 
+@fileset_router.get("/{fileset_id}", tags=["fileset"])
 async def get_fileset(fileset_id: str):
     """
     通过 fileset_id 查询 File 表中的记录
@@ -44,7 +46,7 @@ class QueryFilesetIDModel(BaseModel):
     is_test_mode: bool = Field(False, description="是否为测试模式")
 
 
-# 获取 fileset_id fileset 文件集合
+# 获取 fileset_id 和 fileset 文件集合
 @fileset_router.post("", tags=["fileset"])
 async def get_fileset_id(query_body: QueryFilesetIDModel):
 
@@ -185,7 +187,7 @@ async def delete_file_by_id(file_id: str):
     print("file_id:", file_id)
     try:
         # 开启事务
-        async with in_transaction() as tx:
+        async with in_transaction():
             # 查询文件并删除
             file = await File.get(id=file_id)
             fileset_id = file.fileset_id_id  # 获取文件集 ID
@@ -219,3 +221,36 @@ async def delete_file_by_id(file_id: str):
         # 如果发生异常，事务将自动回滚
         print(f"删除文件时发生错误: {e}")
         raise HTTPException(status_code=500, detail="文件删除失败")
+
+
+# 清除临时文件（Filesets中未匹配chatid的文件）
+# 定时任务 每天晚上4点执行一次
+# 服务启动时也会执行一次
+async def clear_unmatched_filesets():
+    async with in_transaction():
+        try:
+            # 查询Fileset中未匹配chatid的文件
+            filesets = await FileSet.filter(chat_id=None).all()
+            for fileset in filesets:
+                # 如果是测试模式，不删除，测试模式也不会关联chatset
+                # 但是测试模式下，fileset_id和appset_id是一样的
+                if fileset.id == fileset.appset_id_id:
+                    continue
+                else:
+                    fileset_id = fileset.id
+                    # # 删除数据库File有关记录 (自动关联了FileSet，FileSet删除时会级联删除File)
+                    # files = await File.filter(fileset_id_id=fileset_id).all().delete()
+                    # 删除数据库FileSet有关记录
+                    await fileset.delete()
+                    # 删除向量数据库相关记录
+                    load_vectorstore(fileset_id).delete_collection()
+                    # 删除文件夹
+                    folder_path = pathlib.Path(f"static/fileset/{fileset_id}")
+                    if folder_path.exists() and folder_path.is_dir():
+                        shutil.rmtree(folder_path)
+            print("清除临时文件数量:", len(filesets))
+        except Exception as e:
+            print(f"清除临时文件时发生错误: {e}")
+        finally:
+            # 打印自动执行时间
+            print(f"清除临时文件时间: {datetime.datetime.now()}")

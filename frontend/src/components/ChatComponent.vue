@@ -149,7 +149,8 @@ import {
   postUploadFileURL,
   associateChatsetToFilesetAxios,
   getFilesetIdAxios,
-  deleteFileByFileIdAxios
+  deleteFileByFileIdAxios,
+  getFilesAxios
 } from '@/api/fileset.js'
 import { getDownloadDocumentAxios } from '@/api/dataset.js'
 import { useTokenStore } from '@/stores/token.js'
@@ -177,8 +178,8 @@ const beforeRemove = async (uploadFile) => {
       ElMessage.success('正在删除...') // 提示正在删除
       if (uploadFile.id === undefined) {
         // 如果文件没有id，在刚上传，没有刷新重新加载，会出现没有id的正常情况
-        // 访问接口获取fileset_id
-        const files = await fetchFilesetId() // 获取fileset_id
+        // 通过fileset_id获取文件列表
+        const { data: files } = await getFilesAxios(fileset_id.value)
         uploadFile.id = files.find((file) => file.name === uploadFile.name).id
       }
       const response = await deleteFileByFileIdAxios(uploadFile.id)
@@ -199,8 +200,8 @@ const beforeRemove = async (uploadFile) => {
 const handlePreview = async (uploadFile) => {
   if (uploadFile.id === undefined) {
     // 如果文件没有id，在刚上传，没有刷新重新加载，会出现没有id的正常情况
-    // 访问接口获取fileset_id
-    const files = await fetchFilesetId() // 获取fileset_id
+    // 通过fileset_id获取文件列表
+    const { data: files } = await getFilesAxios(fileset_id.value)
     uploadFile.id = files.find((file) => file.name === uploadFile.name).id
   }
   getDownloadDocumentAxios(uploadFile.id)
@@ -463,26 +464,27 @@ watch(
       messages.value = []
       appID = route.params.appID
       chatID = route.query.chatID
-      if (oldChatID === undefined && newChatID) {
-        // new_chat_set模式 从undefined到有值
-        await associateChatsetToFilesetAxios({
-          chatset_id: chatID,
-          fileset_id: fileset_id.value
-        })
-      } else {
-        // 上面的if判断是新建聊天的情况，不需要清空文件列表
-        // 清空文件列表
-        fileList.value = []
-      }
+
       if (props.isTestMode || chatID) {
         // 获取历史聊天记录 (测试模式或者有chatID)
         fetchChatHistory() // 获取聊天记录
+        // 跳转到新的聊天，需要重新获取fileset_id（重要）：fetchFilesetId
         const files = await fetchFilesetId() // 获取fileset_id
         fileList.value = files
       } else {
         // 清空历史记录 (新建聊天)
         history_messages.value = [] // 清空聊天记录
         isShowInitCover.value = true
+      }
+
+      if (oldChatID === undefined && newChatID) {
+        // new_chat_set模式 从undefined到有值
+        // 这里从undefined到有值，说明是新建聊天自动跳转
+        // 或者 手动选择聊天列表的某个聊天（注意不要忽略这种情况）
+        await associateChatsetToFilesetAxios({
+          chatset_id: chatID,
+          fileset_id: fileset_id.value
+        })
       }
     }
   },
@@ -570,21 +572,45 @@ const startRecording = async () => {
 const stopRecording = () => {
   if (!isRecording.value) return
 
-  recorder.processor.disconnect()
-  recorder.audioContext.close()
-  recorder.stream.getTracks().forEach((track) => track.stop())
+  // 断开 audioContext 和 processor
+  if (recorder.processor) {
+    recorder.processor.disconnect()
+  }
+  if (recorder.audioContext) {
+    recorder.audioContext
+      .close()
+      .then(() => {
+        console.log('AudioContext closed')
+      })
+      .catch((err) => {
+        console.error('Error closing AudioContext:', err)
+      })
+  }
 
+  // 停止流中的所有音频轨道
+  if (recorder.stream) {
+    recorder.stream.getTracks().forEach((track) => {
+      track.stop() // 完全停止音频轨道
+    })
+  }
+
+  // 关闭 WebSocket 连接
   if (ws) {
     ws.close()
   }
 
+  // 重置状态
   isRecording.value = false
+  recorder = null // 清除 recorder 对象
+
+  // 通知用户
   console.log('录音停止')
   ElMessage.success('结束语音识别')
 }
 
-// 监听键盘按键 F 来启动和停止录音
+// 监听键盘按键
 const handleKeydown = (event) => {
+  // 监听键盘按键 F 来启动和停止录音
   if (event.key === 'f' || event.key === 'F') {
     if (
       event.target.tagName !== 'INPUT' &&
@@ -596,6 +622,10 @@ const handleKeydown = (event) => {
         startRecording()
       }
     }
+  }
+  // 监听键盘按键 D 来显示和隐藏文件上传区域
+  if (event.key === 'd' || event.key === 'D') {
+    uploadShow.value = !uploadShow.value
   }
 }
 

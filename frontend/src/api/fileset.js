@@ -10,7 +10,11 @@ export const postUploadFileURL = () => `${baseURL}/fileset/uploadfiles/`
 export const associateChatsetToFilesetAxios = ({ chatset_id, fileset_id }) =>
   request.post('/fileset/associate_chatset', { chatset_id, fileset_id })
 
-// 获取fileset_id
+// 获取files
+export const getFilesAxios = (fileset_id) =>
+  request.get(`/fileset/${fileset_id}`)
+
+// 获取fileset_id 和 files
 export const getFilesetIdAxios = ({
   appset_id,
   chat_id = null,

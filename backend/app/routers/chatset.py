@@ -4,7 +4,7 @@ from typing import Optional, Dict, Any, List
 from models.models import APPSet, ChatSet, ChatHistory, Article, FileSet
 from routers.fileset import fileset_dir
 import shutil
-
+from utils.retrieval import load_vectorstore
 
 # 创建一个APIRouter实例
 chatset_router = APIRouter()
@@ -223,11 +223,17 @@ async def delete_chatset(chat_id: str = Path(..., description="ChatSet 的 ID"))
     # 获取与 ChatSet 相关联的 FileSet
     fileset = await FileSet.get_or_none(chat_id=chat_id)
     if fileset:
+        # 删除 FileSet 数据库 （这里不需要删除，因为删除 ChatSet 时会自动删除关联的 FileSet）
+        # await fileset.delete() 
+        # 删除 FileSet 文件夹
         fileset_id = str(fileset.id)
-        app_folder = fileset_dir / fileset_id
-        if app_folder.exists() and app_folder.is_dir():
-            print(f"删除文件夹及其内容: {app_folder}")
-            shutil.rmtree(app_folder)  # 删除文件夹及其所有内容
+        fileset_folder = fileset_dir / fileset_id
+        if fileset_folder.exists() and fileset_folder.is_dir():
+            print(f"删除文件夹及其内容: {fileset_folder}")
+            shutil.rmtree(fileset_folder)  # 删除文件夹及其所有内容
+        
+        # 删除与 FileSet 向量数据库
+        load_vectorstore(fileset.id).delete_collection()
     
     # 删除 ChatSet
     await chatset.delete()

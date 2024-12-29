@@ -101,7 +101,7 @@ class File(Model):
 class FileSet(Model):
     id = fields.UUIDField(pk=True)
     chat_id = fields.OneToOneField(
-        "models.ChatSet", related_name="file_set", on_delete=fields.SET_NULL, null=True
+        "models.ChatSet", related_name="file_set", on_delete=fields.CASCADE, null=True
     )
     create_time = fields.DatetimeField(auto_now_add=True)
     appset_id = fields.ForeignKeyField(
