@@ -79,6 +79,14 @@ CREATE TABLE IF NOT EXISTS `file` (
     `fileset_id_id` CHAR(36) NOT NULL,
     CONSTRAINT `fk_file_fileset_d30a7743` FOREIGN KEY (`fileset_id_id`) REFERENCES `fileset` (`id`) ON DELETE CASCADE
 ) CHARACTER SET utf8mb4;
+CREATE TABLE IF NOT EXISTS `normaluser` (
+    `id` CHAR(36) NOT NULL  PRIMARY KEY,
+    `user_id` VARCHAR(30) NOT NULL UNIQUE,
+    `name` VARCHAR(255) NOT NULL,
+    `hashed_password` VARCHAR(255) NOT NULL,
+    `created_at` DATETIME(6) NOT NULL  DEFAULT CURRENT_TIMESTAMP(6),
+    `updated_at` DATETIME(6) NOT NULL  DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6)
+) CHARACTER SET utf8mb4;
 CREATE TABLE IF NOT EXISTS `querytesthistory` (
     `id` CHAR(36) NOT NULL  PRIMARY KEY,
     `query` LONGTEXT NOT NULL,
@@ -87,6 +95,28 @@ CREATE TABLE IF NOT EXISTS `querytesthistory` (
     `created_at` DATETIME(6) NOT NULL  DEFAULT CURRENT_TIMESTAMP(6),
     `dataset_id_id` CHAR(36) NOT NULL,
     CONSTRAINT `fk_querytes_dataset_24256af0` FOREIGN KEY (`dataset_id_id`) REFERENCES `dataset` (`id`) ON DELETE CASCADE
+) CHARACTER SET utf8mb4;
+CREATE TABLE IF NOT EXISTS `userappset` (
+    `id` CHAR(36) NOT NULL  PRIMARY KEY,
+    `created_at` DATETIME(6) NOT NULL  DEFAULT CURRENT_TIMESTAMP(6),
+    `app_id` CHAR(36) NOT NULL,
+    `user_id` CHAR(36) NOT NULL,
+    CONSTRAINT `fk_userapps_appset_79fbdb23` FOREIGN KEY (`app_id`) REFERENCES `appset` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_userapps_normalus_7a1d4f81` FOREIGN KEY (`user_id`) REFERENCES `normaluser` (`id`) ON DELETE CASCADE
+) CHARACTER SET utf8mb4;
+CREATE TABLE IF NOT EXISTS `usergroup` (
+    `id` CHAR(36) NOT NULL  PRIMARY KEY,
+    `name` VARCHAR(255) NOT NULL UNIQUE,
+    `created_at` DATETIME(6) NOT NULL  DEFAULT CURRENT_TIMESTAMP(6),
+    `updated_at` DATETIME(6) NOT NULL  DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6)
+) CHARACTER SET utf8mb4;
+CREATE TABLE IF NOT EXISTS `normalusergroup` (
+    `id` CHAR(36) NOT NULL  PRIMARY KEY,
+    `created_at` DATETIME(6) NOT NULL  DEFAULT CURRENT_TIMESTAMP(6),
+    `group_id` CHAR(36) NOT NULL,
+    `user_id` CHAR(36) NOT NULL,
+    CONSTRAINT `fk_normalus_usergrou_e5e229d8` FOREIGN KEY (`group_id`) REFERENCES `usergroup` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_normalus_normalus_f827908a` FOREIGN KEY (`user_id`) REFERENCES `normaluser` (`id`) ON DELETE CASCADE
 ) CHARACTER SET utf8mb4;
 CREATE TABLE IF NOT EXISTS `aerich` (
     `id` INT NOT NULL PRIMARY KEY AUTO_INCREMENT,

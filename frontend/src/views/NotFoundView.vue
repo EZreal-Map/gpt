@@ -12,7 +12,7 @@ const router = useRouter()
 
 const redirectToHome = () => {
   // 进行页面导航
-  router.push({ name: 'account' })
+  router.push({ name: 'app' })
 }
 </script>
 

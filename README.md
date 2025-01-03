@@ -23,7 +23,7 @@
    1. `cd backend`
    2. `poetry install`
    3. `poetry shell`
-   4. `docker run -d --name chromadb-container -p 9786:8000 -v C:/Users/tangk/Desktop/gpt/backend/app/static/chroma-data:/chroma/chroma -e ANONYMIZED_TELEMETRY=False chromadb/chroma`
+   4. `docker run -d --name chromadb-container -p 9786:8000 -v D:/Users/tangk/Desktop/gpt/backend/app/static/chroma-data:/chroma/chroma -e ANONYMIZED_TELEMETRY=False chromadb/chroma`
    5. 进入mysql，创建一个名为`gpt`空数据库，
       1. `mysql -uroot -p`
       2. `create database gpt charset utf8;`

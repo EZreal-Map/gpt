@@ -9,12 +9,15 @@ from routers.appset import appset_router
 from routers.appset_no_auth import appset_router_no_auth
 from routers.chatset import chatset_router
 from routers.chat_history import chat_history_router
-from routers.user import user_router
+from routers.admin_user import admin_user_router
 from routers.fileset import fileset_router, clear_unmatched_filesets
 from routers.audio import audio_router
+from routers.normal_user import normal_user_router
 from fastapi.middleware.cors import CORSMiddleware
-from utils.authenticate import get_current_user
-from apscheduler.schedulers.asyncio import AsyncIOScheduler # 定时任务, 用于清除临时文件
+from utils.authenticate import get_current_admin_user_dependence
+from apscheduler.schedulers.asyncio import (
+    AsyncIOScheduler,
+)  # 定时任务, 用于清除临时文件
 from dotenv import load_dotenv
 
 # 加载 .env 文件中的环境变量
@@ -41,20 +44,26 @@ register_tortoise(
     # add_exception_handlers=True,  # 生产环境不要开，会泄露调试信息
 )
 
-scheduler = AsyncIOScheduler() # 创建定时任务
+scheduler = AsyncIOScheduler()  # 创建定时任务
 
 # 聊天响应 有关路由
 app.include_router(chat_router, prefix="/chat")
 # 知识库 有关路由
 app.include_router(
-    retrieval_router, prefix="/retrieval", dependencies=[Depends(get_current_user)]
+    retrieval_router,
+    prefix="/retrieval",
+    dependencies=[Depends(get_current_admin_user_dependence)],
 )
 app.include_router(
-    dataset_router, prefix="/dataset", dependencies=[Depends(get_current_user)]
+    dataset_router,
+    prefix="/dataset",
+    dependencies=[Depends(get_current_admin_user_dependence)],
 )
 # 应用 有关路由
 app.include_router(
-    appset_router, prefix="/appset", dependencies=[Depends(get_current_user)]
+    appset_router,
+    prefix="/appset",
+    dependencies=[Depends(get_current_admin_user_dependence)],
 )
 app.include_router(
     appset_router_no_auth, prefix="/appset"
@@ -62,17 +71,20 @@ app.include_router(
 # 聊天记录 有关路由
 app.include_router(chatset_router, prefix="/chatset")
 app.include_router(chat_history_router, prefix="/chat_history")
-# 用户 有关路由
-app.include_router(user_router)
+# admin用户 有关路由
+app.include_router(admin_user_router)
 # fileset存储 有关路由
 app.include_router(fileset_router, prefix="/fileset")
 # 语音识别，语音生成 有关路由
 app.include_router(audio_router)
+# 普通用户 有关路由
+app.include_router(normal_user_router)
+
 
 # 增加清除临时文件定时任务
 @app.on_event("startup")
 async def startup_event():
-    scheduler.add_job(clear_unmatched_filesets, 'cron', hour=4)  # 每天凌晨4点运行
+    scheduler.add_job(clear_unmatched_filesets, "cron", hour=4)  # 每天凌晨4点运行
     scheduler.start()
     print("Scheduler：定时清除临时FileSet已启动")
     await clear_unmatched_filesets()
@@ -80,5 +92,5 @@ async def startup_event():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("server:app", host="0.0.0.0", port=7979, reload=True)
 
+    uvicorn.run("server:app", host="0.0.0.0", port=7979, reload=True)

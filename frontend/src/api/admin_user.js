@@ -4,7 +4,7 @@ import request from '@/utils/request'
 //  Account.vue
 // 用户登录
 export const postFormLoginAxios = ({ username, password }) => {
-  return request.post('/login', qs.stringify({ username, password }), {
+  return request.post('/login/admin', qs.stringify({ username, password }), {
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded'
     }
@@ -15,6 +15,6 @@ export const postFormLoginAxios = ({ username, password }) => {
 export const checkIsLogin = async () => {
   // 响应拦截器自动添加
   // headers.Authorization = `${tokenStore.token_type} ${tokenStore.access_token}`
-  const response = await request.get('/login')
+  const response = await request.get('/login/status')
   return response.data.is_login
 }

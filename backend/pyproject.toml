@@ -30,6 +30,9 @@ chromadb = "0.4.9"
 azure-cognitiveservices-speech = "^1.38.0"
 pyaudio = "^0.2.14"
 apscheduler = "^3.11.0"
+pandas = "^2.2.3"
+openpyxl = "^3.1.5"
+xlrd = "^2.0.1"
 
 
 [tool.poetry.group.dev.dependencies]

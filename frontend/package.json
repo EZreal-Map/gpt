@@ -15,7 +15,7 @@
     "@microsoft/fetch-event-source": "^2.0.1",
     "axios": "^1.7.2",
     "default-passive-events": "^2.0.0",
-    "element-plus": "^2.7.5",
+    "element-plus": "^2.9.1",
     "md-editor-v3": "^4.17.3",
     "pcm-player": "^0.0.18",
     "pinia": "^2.1.7",

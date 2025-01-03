@@ -32,11 +32,12 @@ os.makedirs(audio_dir, exist_ok=True)  # 创建目录
 # 处理 WebSocket 音频连接
 @audio_router.websocket("/ws/stt")
 async def audio_endpoint(websocket: WebSocket):
-    await websocket.accept()
-    audio_name = uuid.uuid4().hex  # 生成一个唯一的音频名称
-    audio_path = os.path.join(audio_dir, audio_name + ".wav")  # 生成音频文件的路径
-    print(f"音频文件路径: {audio_path}")
     try:
+        await websocket.accept()
+        audio_name = uuid.uuid4().hex  # 生成一个唯一的音频名称
+        audio_path = os.path.join(audio_dir, audio_name + ".wav")  # 生成音频文件的路径
+        print(f"音频文件路径: {audio_path}")
+
         audio_buffer = bytearray()  # 用于保存接收到的音频数据
         count = 0  # 用于保存音频块的数量
         start_time = time.time()
@@ -61,18 +62,14 @@ async def audio_endpoint(websocket: WebSocket):
         print(f"{e}")
 
 
-
-
 # WebSocket 处理请求并流式发送音频数据
 @audio_router.websocket("/ws/tts")
 async def audio_stream(websocket: WebSocket):
-    await websocket.accept()
-
-    # 等待客户端传送的文本
-    request_text = await websocket.receive_text()
-
-    # 调用 text_to_speech 方法获取音频流
     try:
+        await websocket.accept()
+        # 等待客户端传送的文本
+        request_text = await websocket.receive_text()
+        # 调用 text_to_speech 方法获取音频流
         audio_stream = text_to_speech(request_text)  # 获取音频流（非流式）
         # 将音频流逐块写入 BytesIO 对象
         buffer = bytes(1024 * 8)  # 每次读取 8KB 的缓冲区
@@ -83,9 +80,7 @@ async def audio_stream(websocket: WebSocket):
             filled_size = audio_stream.read_data(buffer)
 
     except Exception as e:
-        await websocket.send_text(f"Error: {str(e)}")
-    finally:
-        await websocket.close()
+        print(f"{e}")
 
 
 # 语音合成回调函数 (同步)
@@ -150,7 +145,7 @@ async def audio_stream(websocket: WebSocket):
 
 #         synthesizer.synthesizing.connect(
 #             lambda evt: synthesize_callback(evt, audio_queue)
-#         )    
+#         )
 
 #         audio_task = asyncio.create_task(send_audio(audio_queue, websocket))
 

@@ -21,9 +21,11 @@ import ChatView from '@/views/ChatView.vue'
 // 其他路由：403禁止访问、404未找到
 import ForbiddenView from '@/views/ForbiddenView.vue'
 import NotFoundView from '@/views/NotFoundView.vue'
+// 其他路由：登录
+import LoginView from '@/views/LoginView.vue'
 
 import { ElMessage } from 'element-plus'
-import { checkIsLogin } from '@/api/user.js'
+import { checkIsLogin } from '@/api/admin_user.js'
 // 定义登录判断路由守卫
 const isLogin = async (to, from, next) => {
   const isLogin = await checkIsLogin()
@@ -31,7 +33,7 @@ const isLogin = async (to, from, next) => {
     next() // 已经登录，允许访问
   } else {
     ElMessage.warning('您没有权限访问此页面，请登录') // 显示警告消息
-    next({ name: 'account' }) // 未登录，重定向到首页或其他页面
+    next({ name: 'login' }) // 未登录，重定向到首页或其他页面
   }
 }
 
@@ -40,7 +42,7 @@ const router = createRouter({
   routes: [
     {
       path: '/',
-      redirect: '/account'
+      redirect: '/login'
     },
     { path: '/app', name: 'app', component: AppView, beforeEnter: isLogin },
     {
@@ -120,6 +122,12 @@ const router = createRouter({
       path: '/404',
       name: 'not-found',
       component: NotFoundView,
+      meta: { noLayout: true }
+    },
+    {
+      path: '/login',
+      name: 'login',
+      component: LoginView,
       meta: { noLayout: true }
     }
   ]

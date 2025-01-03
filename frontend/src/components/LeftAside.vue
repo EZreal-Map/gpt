@@ -33,14 +33,14 @@ const currentRoute = ref()
 
 const navigateToAccount = () => {
   router.push({
-    name: 'account'
+    name: 'login'
   })
 }
 
 const menuItems = [
   { text: '应用', route: { name: 'app' }, icon: Promotion },
   { text: '知识库', route: { name: 'database' }, icon: Coin },
-  { text: '账号', route: { name: 'account' }, icon: UserFilled }
+  { text: '用户', route: { name: 'account' }, icon: UserFilled }
 ]
 
 const isSelected = (itemRoute) => {

@@ -113,7 +113,7 @@ import { useSettingStore } from '@/stores/setting.js'
 import ChatSetBox from '@/components/ChatSetBox.vue'
 import ChatComponent from '@/components/ChatComponent.vue'
 import { getAppsetAxios } from '@/api/appset.js'
-import { checkIsLogin } from '@/api/user.js'
+import { checkIsLogin } from '@/api/admin_user.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 // 跳转路由

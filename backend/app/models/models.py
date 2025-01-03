@@ -107,3 +107,41 @@ class FileSet(Model):
     appset_id = fields.ForeignKeyField(
         "models.APPSet", related_name="file_set", on_delete=fields.CASCADE
     )
+
+
+class NormalUser(Model):
+    id = fields.UUIDField(pk=True)
+    user_id = fields.CharField(max_length=30, unique=True)
+    name = fields.CharField(max_length=255)
+    hashed_password = fields.CharField(max_length=255)
+    created_at = fields.DatetimeField(auto_now_add=True)
+    updated_at = fields.DatetimeField(auto_now=True)
+
+
+class UserGroup(Model):
+    id = fields.UUIDField(pk=True)
+    name = fields.CharField(max_length=255, unique=True)
+    created_at = fields.DatetimeField(auto_now_add=True)
+    updated_at = fields.DatetimeField(auto_now=True)
+
+
+class NormalUserGroup(Model):  # 中间表，记录用户与用户组的关系
+    id = fields.UUIDField(pk=True)
+    user = fields.ForeignKeyField(
+        "models.NormalUser", related_name="user_groups", on_delete=fields.CASCADE
+    )
+    group = fields.ForeignKeyField(
+        "models.UserGroup", related_name="group_users", on_delete=fields.CASCADE
+    )
+    created_at = fields.DatetimeField(auto_now_add=True)
+
+
+class UserAPPSet(Model):  # 中间表，记录用户与APP的关系
+    id = fields.UUIDField(pk=True)
+    user = fields.ForeignKeyField(
+        "models.NormalUser", related_name="user_apps", on_delete=fields.CASCADE
+    )
+    app = fields.ForeignKeyField(
+        "models.APPSet", related_name="app_users", on_delete=fields.CASCADE
+    )
+    created_at = fields.DatetimeField(auto_now_add=True)
