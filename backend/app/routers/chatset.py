@@ -1,10 +1,11 @@
-from fastapi import APIRouter, HTTPException, Path, Query, Body
+from fastapi import APIRouter, HTTPException, Path, Query, Body, Depends
 from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any, List
 from models.models import APPSet, ChatSet, ChatHistory, Article, FileSet
 from routers.fileset import fileset_dir
 import shutil
 from utils.retrieval import load_vectorstore
+from utils.authenticate import get_current_normal_user_dependence
 
 # 创建一个APIRouter实例
 chatset_router = APIRouter()
@@ -46,7 +47,9 @@ class ChatHistoryCreate(BaseModel):
 # 与 ChatSet 有关 ChatHistory 的 CRUD 路由
 # 添加指定chat_id/默认id的一条对话历史记录路由
 @chatset_router.post("/{appset_id}/chat_history", tags=["chat_history"])
-async def add_test_chat_history(chat_history: ChatHistoryCreate):
+async def add_test_chat_history(
+    chat_history: ChatHistoryCreate, user=Depends(get_current_normal_user_dependence)
+):
     # 查询指定的 APPSet
     appset = await APPSet.filter(id=chat_history.appset_id).first()
     if not appset:
@@ -70,7 +73,9 @@ async def add_test_chat_history(chat_history: ChatHistoryCreate):
                 raise HTTPException(status_code=404, detail="未找到测试 ChatSet")
         else:
             # 创建新的 ChatSet, is_test 设置为 False
-            chat_set = await ChatSet.create(app_id=appset, is_test=False)
+            chat_set = await ChatSet.create(
+                app_id=appset, is_test=False, user_id=user.id
+            )
             chat_set_mode = "new_chat_set"
 
     # 引用记录(集合) 的序列化
@@ -178,16 +183,23 @@ async def delete_chat_set_history(
 
 # 有关 ChatSet 的 CRUD 路由
 # 根据 appset_id 返回所有与 appset_id 关联的 chatset (is_test=True除外)
+# 同时还要增加条件查询 user_id
 @chatset_router.get("/{appset_id}/chatset", tags=["chatset"])
-async def get_related_chat_ids(appset_id: str = Path(..., description="APPSet 的 ID")):
+async def get_related_chat_ids(
+    appset_id: str = Path(..., description="APPSet 的 ID"),
+    user=Depends(get_current_normal_user_dependence),
+):
     # 查询指定的 APPSet
     appset = await APPSet.get_or_none(id=appset_id)
     if not appset:
+        print("未找到指定的 APPSet")
         raise HTTPException(status_code=404, detail="未找到指定的 APPSet")
 
     # 查询与该 APPSet 关联的所有 ChatSet 的 ID
     chatsets = (
-        await ChatSet.filter(app_id=appset, is_test=False).all().order_by("-created_at")
+        await ChatSet.filter(app_id=appset, is_test=False, user_id=user.id)
+        .all()
+        .order_by("-created_at")
     )
     for chatset in chatsets:
         chatset.created_at = chatset.created_at.strftime("%Y-%m-%d %H:%M:%S")
@@ -218,24 +230,27 @@ async def delete_chatset(chat_id: str = Path(..., description="ChatSet 的 ID"))
     chatset = await ChatSet.get_or_none(id=chat_id)
     if not chatset:
         raise HTTPException(status_code=404, detail="未找到指定的 ChatSet")
+    # 删除 ChatSet
+    await delete_chatset_by_chatset(chatset)
+    return {"detail": "ChatSet 删除成功"}
 
+
+async def delete_chatset_by_chatset(chatset: ChatSet):
     # 删除文件夹及其所有内容
     # 获取与 ChatSet 相关联的 FileSet
-    fileset = await FileSet.get_or_none(chat_id=chat_id)
+    fileset = await FileSet.get_or_none(chat_id=chatset.id)
     if fileset:
         # 删除 FileSet 数据库 （这里不需要删除，因为删除 ChatSet 时会自动删除关联的 FileSet）
-        # await fileset.delete() 
+        # await fileset.delete()
         # 删除 FileSet 文件夹
         fileset_id = str(fileset.id)
         fileset_folder = fileset_dir / fileset_id
         if fileset_folder.exists() and fileset_folder.is_dir():
             print(f"删除文件夹及其内容: {fileset_folder}")
             shutil.rmtree(fileset_folder)  # 删除文件夹及其所有内容
-        
+
         # 删除与 FileSet 向量数据库
         load_vectorstore(fileset.id).delete_collection()
-    
+
     # 删除 ChatSet
     await chatset.delete()
-    
-    return {"detail": "ChatSet 删除成功"}

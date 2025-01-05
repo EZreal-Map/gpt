@@ -1,8 +1,17 @@
-from fastapi import APIRouter, HTTPException, Query, UploadFile, Body
+from fastapi import APIRouter, HTTPException, Query, UploadFile, Body, status, Depends
 from pydantic import BaseModel, validator
 from tortoise.exceptions import IntegrityError
-from models.models import NormalUser, UserGroup, NormalUserGroup
-from utils.authenticate import hash_password
+from models.models import (
+    NormalUser,
+    UserGroup,
+    NormalUserGroup,
+    APPSet,
+    GroupAPPSet,
+    ChatSet,
+)
+from routers.chatset import delete_chatset_by_chatset
+from utils.authenticate import hash_password, get_current_normal_user_dependence
+from routers.appset import APPSetResponseModel, PrivacyEnum
 from datetime import datetime
 from tortoise.transactions import in_transaction
 from typing import Union, Optional, List, Dict
@@ -18,7 +27,7 @@ DEFAULT_PASSWORD = "123456"
 
 
 class ResultModel(BaseModel):
-    code: int = 0  # 编码：1成功，0和其它数字为失败
+    code: int = 0  # 编码：0成功，1失败
     message: str = "success"
     data: Optional[Union[List, Dict]] = None  # 支持空值、列表、字典
 
@@ -152,11 +161,36 @@ async def batch_create_normal_users(file: UploadFile):
 )
 async def delete_normal_user(user_id_list: List[str] = Body(...)):
     for user_id in user_id_list:
+        # 删除NormalUser表中的用户
         user_obj = await NormalUser.get_or_none(user_id=user_id)
         if user_obj is None:
             raise HTTPException(status_code=404, detail="User not found")
         await user_obj.delete()
+        # 删除NormalUserGroup表中的用户组关系（自动删除）
+        # 删除ChatSet表中的用户关联
+        chatsets = await ChatSet.filter(user_id=user_obj.id)
+        for chatset in chatsets:
+            await delete_chatset_by_chatset(chatset)
+
     return ResultModel(message="删除用户成功")
+
+
+# 更新一个用户密码
+# 路径没办法加入/update,因为不这样会导致与 "更新一个用户" 路径冲突
+@normal_user_router.put(
+    "/normal_user/password/update", response_model=ResultModel, tags=["normal_user"]
+)
+async def update_normal_user_password(
+    user=Depends(get_current_normal_user_dependence), password: str = Body(...)
+):
+    user_obj = await NormalUser.get_or_none(id=user.id)
+    if user_obj is None:
+        return ResultModel(
+            code=1, message="无法修改密码：用户信息未找到，请尝试重新登录后重试"
+        )
+    user_obj.hashed_password = hash_password(password)
+    await user_obj.save()
+    return ResultModel(message="修改密码成功，请重新登录")
 
 
 class NormalUserUpdate(BaseModel):
@@ -254,8 +288,147 @@ async def get_normal_users(
     return ResultModel(data=data)
 
 
+# 通过用户编号获取与之关联的应用（APPSet）信息
+# 异步查询 ChatSet 中与 user_id 相关的记录，去重 app_id 并获取与之关联的 APPSet 信息
+@normal_user_router.get(
+    "/normal_user/appset/", response_model=ResultModel, tags=["normal_user"]
+)
+async def get_user_appset(user_id: str = Query(...)):
+    # 查询 NormalUser
+    user = await NormalUser.filter(user_id=user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="用户不存在",
+        )
+    # 通过 NormalUser 获取关联的 UserGroup
+    user_groups = await NormalUserGroup.filter(user=user).select_related("group").all()
+    # 获取所有关联的 APPSet
+    app_sets = set()  # 使用集合来去重 APPSet 实例
+    for user_group in user_groups:
+        # 获取与 UserGroup 关联的 APPSet
+        group_apps = (
+            await GroupAPPSet.filter(group=user_group.group).select_related("app").all()
+        )
+        for group_app in group_apps:
+            app_sets.add(group_app.app)  # 将 APPSet 实例加入集合，避免重复
+    # 组织返回数据
+    data = []
+    for app_set in app_sets:
+        if app_set.privacy == PrivacyEnum.PRIVATE:
+            continue
+        data.append(
+            APPSetResponseModel(
+                id=app_set.id,
+                name=app_set.name,
+                description=app_set.description,
+                privacy=app_set.privacy,
+                created_at=app_set.created_at,
+            )
+        )
+    return ResultModel(data=data)
+
+
 # 获取所有用户组
 @normal_user_router.get("/group/", response_model=ResultModel, tags=["group"])
 async def get_user_groups():
     groups = await UserGroup.all().order_by("-updated_at")
     return ResultModel(data=[group.name for group in groups])
+
+
+# 获取所有用户组及其用户数量
+@normal_user_router.get("/group/usercount/", response_model=ResultModel, tags=["group"])
+async def get_user_groups_usercount():
+    # 获取所有用户组并计算每个组的用户数量
+    groups = await UserGroup.all().order_by("-updated_at")
+    result = []
+    for group in groups:
+        # 统计每个组的用户数量
+        user_count = await NormalUserGroup.filter(group=group).count()
+        result.append(
+            {"id": group.id, "group_name": group.name, "user_count": user_count}
+        )
+    return ResultModel(data=result)
+
+
+# 根据group_id更新用户组名称
+@normal_user_router.put("/group/{group_id}", response_model=ResultModel, tags=["group"])
+async def update_user_group_name(group_id: str, newname: str = Body(...)):
+    # 检查用户组名称是否重名
+    group = await UserGroup.get_or_none(name=newname)
+    if group is not None:
+        return ResultModel(
+            code=1, message="修改失败：该用户组名称已被占用，请选择一个不同的名称"
+        )
+    # 获取即将修改的用户组
+    group = await UserGroup.get_or_none(id=group_id)
+    if group is None:
+        ResultModel(code=1, message="修改失败，用户组不存在，请刷新页面后重试")
+    group.name = newname
+    await group.save()
+    return ResultModel(message="用户组名称更新成功，新名称已生效")
+
+
+# 根据group_id删除用户组，同时删除仅与此用户组关联的用户
+@normal_user_router.delete(
+    "/group/{group_id}", response_model=ResultModel, tags=["group"]
+)
+async def delete_user_group(group_id: str):
+    async with in_transaction():
+        # 获取即将删除的用户组
+        group = await UserGroup.get_or_none(id=group_id)
+        if group is None:
+            return ResultModel(code=1, message="删除失败，用户组不存在")
+        # 删除仅与此用户组关联的用户
+        # 1、查找仅与此用户组关联的用户
+        user_group_sets = await NormalUserGroup.filter(group=group).all()
+        # 2、删除这些与该用户组关联的用户
+        for user_group in user_group_sets:
+            user_id = user_group.user_id
+            # 检查该用户是否仅与该组关联
+            related_groups = await NormalUserGroup.filter(user_id=user_id).all()
+            if len(related_groups) == 1:  # 仅与当前用户组关联
+                await NormalUser.filter(id=user_id).delete()  # 删除用户
+        # 删除用户组
+        await group.delete()
+        # 用户与用户组关联表（自动删除）,用户组与APP关联表（自动删除）
+        # NormalUserGroup/GroupAPPSet 表中的记录会自动删除
+    return ResultModel(message="用户组删除成功，同时清除了仅与该用户组关联的用户")
+
+
+class GroupAPPBindModel(BaseModel):
+    groups: list[str] = []
+    appid: str
+
+
+# 绑定用户组与APP
+@normal_user_router.post("/group/appset/", response_model=ResultModel, tags=["group"])
+async def bind_group_appset(groups_appid: GroupAPPBindModel):
+    async with in_transaction():
+        appset = await APPSet.get_or_none(id=groups_appid.appid)
+        if appset is None:
+            raise HTTPException(status_code=404, detail="APP not found")
+        # 删除原有的用户组与APP的关系
+        await GroupAPPSet.filter(app=appset).delete()
+        # 创建新的用户组与APP的关系
+        if len(groups_appid.groups) == 0:
+            return ResultModel(message="用户分组与应用解绑成功")
+        for group_name in groups_appid.groups:
+            user_group = await UserGroup.get_or_none(name=group_name)
+            if user_group is None:
+                raise HTTPException(status_code=404, detail="Group not found")
+            await GroupAPPSet.create(group=user_group, app=appset)
+    return ResultModel(message="用户分组与应用绑定成功")
+
+
+# 获取用户组与APP的绑定关系
+@normal_user_router.get("/group/appset/", response_model=ResultModel, tags=["group"])
+async def get_group_appset(appid: str):
+    appset = await APPSet.get_or_none(id=appid)
+    if appset is None:
+        raise HTTPException(status_code=404, detail="APP not found")
+    # 查询与该 APP 关联的 GroupAPPSet，并加载关联的 group 数据
+    group_appsets = await GroupAPPSet.filter(app=appset).prefetch_related("group")
+    # 提取 group 的名称
+    groups = [group_appset.group.name for group_appset in group_appsets]
+    return ResultModel(data=groups)

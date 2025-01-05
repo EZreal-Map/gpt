@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS `adminuser` (
 CREATE TABLE IF NOT EXISTS `chatset` (
     `id` CHAR(36) NOT NULL  PRIMARY KEY,
     `name` VARCHAR(255) NOT NULL  DEFAULT 'new chat',
+    `user_id` VARCHAR(255),
     `is_test` BOOL NOT NULL  DEFAULT 0,
     `created_at` DATETIME(6) NOT NULL  DEFAULT CURRENT_TIMESTAMP(6),
     `updated_at` DATETIME(6) NOT NULL  DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
@@ -96,19 +97,19 @@ CREATE TABLE IF NOT EXISTS `querytesthistory` (
     `dataset_id_id` CHAR(36) NOT NULL,
     CONSTRAINT `fk_querytes_dataset_24256af0` FOREIGN KEY (`dataset_id_id`) REFERENCES `dataset` (`id`) ON DELETE CASCADE
 ) CHARACTER SET utf8mb4;
-CREATE TABLE IF NOT EXISTS `userappset` (
-    `id` CHAR(36) NOT NULL  PRIMARY KEY,
-    `created_at` DATETIME(6) NOT NULL  DEFAULT CURRENT_TIMESTAMP(6),
-    `app_id` CHAR(36) NOT NULL,
-    `user_id` CHAR(36) NOT NULL,
-    CONSTRAINT `fk_userapps_appset_79fbdb23` FOREIGN KEY (`app_id`) REFERENCES `appset` (`id`) ON DELETE CASCADE,
-    CONSTRAINT `fk_userapps_normalus_7a1d4f81` FOREIGN KEY (`user_id`) REFERENCES `normaluser` (`id`) ON DELETE CASCADE
-) CHARACTER SET utf8mb4;
 CREATE TABLE IF NOT EXISTS `usergroup` (
     `id` CHAR(36) NOT NULL  PRIMARY KEY,
     `name` VARCHAR(255) NOT NULL UNIQUE,
     `created_at` DATETIME(6) NOT NULL  DEFAULT CURRENT_TIMESTAMP(6),
     `updated_at` DATETIME(6) NOT NULL  DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6)
+) CHARACTER SET utf8mb4;
+CREATE TABLE IF NOT EXISTS `groupappset` (
+    `id` CHAR(36) NOT NULL  PRIMARY KEY,
+    `created_at` DATETIME(6) NOT NULL  DEFAULT CURRENT_TIMESTAMP(6),
+    `app_id` CHAR(36) NOT NULL,
+    `group_id` CHAR(36) NOT NULL,
+    CONSTRAINT `fk_groupapp_appset_0100e488` FOREIGN KEY (`app_id`) REFERENCES `appset` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_groupapp_usergrou_bc4e2dae` FOREIGN KEY (`group_id`) REFERENCES `usergroup` (`id`) ON DELETE CASCADE
 ) CHARACTER SET utf8mb4;
 CREATE TABLE IF NOT EXISTS `normalusergroup` (
     `id` CHAR(36) NOT NULL  PRIMARY KEY,

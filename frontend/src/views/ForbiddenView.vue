@@ -12,7 +12,7 @@ import { useRouter } from 'vue-router'
 const router = useRouter()
 
 const goToLogin = () => {
-  router.push({ name: 'app' }) // 跳转到登录页面，'app' 是你路由中登录页面的名称
+  router.push({ name: 'login' }) // 跳转到登录页面，'login' 是你路由中登录页面的名称
 }
 </script>
 

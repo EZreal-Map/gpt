@@ -12,6 +12,7 @@ import datetime
 # 创建一个APIRouter实例
 fileset_router = APIRouter()
 
+
 @fileset_router.get("/{fileset_id}", tags=["fileset"])
 async def get_fileset(fileset_id: str):
     """
@@ -35,10 +36,11 @@ async def get_fileset(fileset_id: str):
         {
             "id": str(file.id),
             "name": file.filename,
-            "create_time": file.create_time.isoformat() if file.create_time else None
+            "create_time": file.create_time.isoformat() if file.create_time else None,
         }
         for file in files
     ]
+
 
 class QueryFilesetIDModel(BaseModel):
     appset_id: str = Field(..., description="APPSet的ID，确认模型参数与检索参数")
@@ -64,11 +66,12 @@ async def get_fileset_id(query_body: QueryFilesetIDModel):
     # 如果是测试模式，直接返回 appset_id作为fileset_id
     if query_body.is_test_mode:
         fileset_id = query_body.appset_id
-    
+
     # 获取 fileset 文件集合
     files = await get_fileset(fileset_id)
 
     return {"fileset_id": fileset_id, "files": files}
+
 
 # 函数：关联 ChatSet 和 FileSet
 async def associate_chatset_with_fileset(chatset_id: str, fileset_id: str):
@@ -89,10 +92,12 @@ async def associate_chatset_with_fileset(chatset_id: str, fileset_id: str):
         # 没有fileset记录，所以不用关联，返回False，属于正常情况
         return False
 
+
 # AssociateModel 用于接受请求体
 class AssociateModel(BaseModel):
     chatset_id: str  # ChatSet ID
     fileset_id: str  # FileSet ID
+
 
 @fileset_router.post("/associate_chatset", tags=["fileset"])
 async def associate_chatset_to_fileset(query_body: AssociateModel):
@@ -101,7 +106,9 @@ async def associate_chatset_to_fileset(query_body: AssociateModel):
     :param query_body: 请求体，包含 chatset_id 和 fileset_id
     """
     # 调用 associate_chatset_with_fileset 函数
-    result = await associate_chatset_with_fileset(query_body.chatset_id, query_body.fileset_id)
+    result = await associate_chatset_with_fileset(
+        query_body.chatset_id, query_body.fileset_id
+    )
     print("新聊天记录关联结果：", result)
 
     return {"result": result}
@@ -111,8 +118,15 @@ async def associate_chatset_to_fileset(query_body: AssociateModel):
 # 定义 fileset_dir 存储文件的临时目录
 fileset_dir = pathlib.Path("./static/fileset")
 
+
 @fileset_router.post("/uploadfiles/", tags=["fileset"])
-async def create_upload_files(file: list[UploadFile],fileset_id: str = Form(...),chatset_id: str = Form(...),appset_id: str = Form(None),is_test_mode: bool = Form(False)):
+async def create_upload_files(
+    file: list[UploadFile],
+    fileset_id: str = Form(...),
+    chatset_id: str = Form(...),
+    appset_id: str = Form(None),
+    is_test_mode: bool = Form(False),
+):
     """
     上传文件并将其保存到以 fileset_id 命名的文件夹
     :param file: 要上传的文件列表
@@ -131,8 +145,7 @@ async def create_upload_files(file: list[UploadFile],fileset_id: str = Form(...)
         appset = await APPSet.get(id=appset_id)
         # 如果没有找到，创建一个新的 FileSet
         fileset = await FileSet.create(
-            id=fileset_id,  # 使用传入的 fileset_id 创建新记录
-            appset_id = appset
+            id=fileset_id, appset_id=appset  # 使用传入的 fileset_id 创建新记录
         )
     # 如果 chat_id_id 为空，且 chatset_id 不为空，关联 chatset_id 和 fileset_id
     print("fileset.chat_id_id:", fileset.chat_id_id)
@@ -148,33 +161,42 @@ async def create_upload_files(file: list[UploadFile],fileset_id: str = Form(...)
     pdf_files = []  # 用于存储文件路径列表
     file_ids = []  # 用于存储文件 ID 列表
 
-    for f in file:
-        temp_file_path = app_folder / f.filename  # 在 fileset_id 文件夹下创建文件路径
+    try:
+        for f in file:
+            temp_file_path = (
+                app_folder / f.filename
+            )  # 在 fileset_id 文件夹下创建文件路径
 
-        # 保存文件到 fileset_id 文件夹
-        with temp_file_path.open("wb") as buffer:
-            shutil.copyfileobj(f.file, buffer)
+            # 保存文件到 fileset_id 文件夹
+            with temp_file_path.open("wb") as buffer:
+                shutil.copyfileobj(f.file, buffer)
 
-        filenames.append(f.filename)  # 保存文件名到列表
-        pdf_files.append(str(temp_file_path))  # 保存文件路径到 pdf_files 列表
+            filenames.append(f.filename)  # 保存文件名到列表
+            pdf_files.append(str(temp_file_path))  # 保存文件路径到 pdf_files 列表
 
-        # 创建 File 记录，将文件与 FileSet 关联
-        file = await File.create(
-            filename=f.filename,
-            fileset_id=fileset,  # 传递 fileset 实例，而不是 fileset.id
+            # 创建 File 记录，将文件与 FileSet 关联
+            file = await File.create(
+                filename=f.filename,
+                fileset_id=fileset,  # 传递 fileset 实例，而不是 fileset.id
+            )
+            file_ids.append(file.id)  # 保存文件 ID 到列表
+        # 使用 pdf_files 调用 PDF_to_documents 函数
+        # 使用默认的切割方式切割 PDF 文件
+        documents = PDF_to_documents(
+            file_paths=pdf_files, dataset_id=fileset.id, file_ids=file_ids
         )
-        file_ids.append(file.id)  # 保存文件 ID 到列表
-
-    # 使用 pdf_files 调用 PDF_to_documents 函数
-    # 使用默认的切割方式切割 PDF 文件
-    documents = PDF_to_documents(file_paths=pdf_files, dataset_id=fileset.id, file_ids=file_ids)
-    
-    # 通过 fileset_id 加载vectorstore, 没有则创建，
-    vectorstore = load_vectorstore(fileset.id)
-    vectorstore.add_documents(documents) 
-    
+        # 通过 fileset_id 加载vectorstore, 没有则创建，
+        vectorstore = load_vectorstore(fileset.id)
+        vectorstore.add_documents(documents)
+    except Exception as e:
+        print(f"上传文件时发生错误: {e}")
+        # 如果发生异常，删除已上传的文件
+        for f in filenames:
+            file_path = app_folder / f
+            if file_path.exists():
+                file_path.unlink()
+        raise HTTPException(status_code=500, detail="文件上传失败")
     return {"fileset_id": fileset_id}
-
 
 
 @fileset_router.delete("/{file_id}", tags=["fileset"])

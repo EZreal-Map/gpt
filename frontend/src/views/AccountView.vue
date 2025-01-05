@@ -27,7 +27,7 @@
               :value="group"
             />
           </el-select>
-          <el-button type="primary" style="margin-left: 20px" @click="initTable"
+          <el-button type="primary" style="margin-left: 30px" @click="initTable"
             >查询</el-button
           >
         </div>
@@ -44,10 +44,17 @@
             :on-success="successUpload"
             :show-file-list="false"
           >
-            <el-button type="primary" style="margin-left: 20px">
+            <el-button type="primary" style="margin-left: 30px">
               + 批量添加</el-button
             >
           </el-upload>
+          <el-button
+            type="primary"
+            @click="drawer = true"
+            style="margin-left: 30px"
+          >
+            分组管理</el-button
+          >
         </div>
       </div>
 
@@ -72,7 +79,7 @@
               type="primary"
               size="small"
               @click="updateNormalUserHandle(scope.row)"
-              >更新</el-button
+              >修改</el-button
             >
           </template>
         </el-table-column>
@@ -120,8 +127,8 @@
         prop="password"
       >
         <el-input
+          show-password
           v-model="form.password"
-          autocomplete="on"
           placeholder="请输入用户密码（不输入会使用默认密码123456）"
           :style="{ width: formInputWidth }"
         />
@@ -156,8 +163,8 @@
     </template>
   </el-dialog>
 
-  <!-- 更新用户弹窗 -->
-  <el-dialog v-model="dialogUpdateFormVisible" title="更新用户" width="500">
+  <!-- 修改用户弹窗 -->
+  <el-dialog v-model="dialogUpdateFormVisible" title="修改用户" width="500">
     <el-form :model="formUpdate" :rules="rules" ref="formUpdateRef">
       <el-form-item
         label="用户编号"
@@ -211,9 +218,21 @@
       </div>
     </template>
   </el-dialog>
+
+  <!-- 分组弹窗(抽屉) -->
+  <div v-if="drawer">
+    <el-drawer
+      v-model="drawer"
+      title="分组管理"
+      :before-close="handleDrawerClose"
+    >
+      <GroupsManagementDrawer />
+    </el-drawer>
+  </div>
 </template>
 <script setup>
 import { ref } from 'vue'
+import GroupsManagementDrawer from '@/components/GroupsmanagementDrawer.vue'
 import {
   getNormalUsers,
   createNormalUser,
@@ -313,7 +332,7 @@ const form = ref({
 // 表单验证规则
 const rules = {
   user_id: [{ required: true, message: '请输入用户编号', trigger: 'blur' }],
-  new_user_id: [{ required: true, message: '请输入用户编号', trigger: 'blur' }], // 更新用户的id时候用到此字段
+  new_user_id: [{ required: true, message: '请输入用户编号', trigger: 'blur' }], // 修改用户的id时候用到此字段
   name: [{ required: true, message: '请输入用户名字', trigger: 'blur' }],
   password: [
     { required: false, message: '请选择密码', trigger: 'blur' },
@@ -353,7 +372,7 @@ const createNormalUserHandle = () => {
   })
 }
 
-// 更新用户 弹窗相关
+// 修改用户 弹窗相关
 const dialogUpdateFormVisible = ref(false)
 const formUpdateRef = ref()
 const formUpdate = ref({
@@ -364,7 +383,7 @@ const formUpdate = ref({
   groups: []
 })
 
-// 更新用户的处理函数
+// 修改用户的处理函数
 const updateNormalUserHandle = (row) => {
   dialogUpdateFormVisible.value = true
   formUpdate.value.original_user_id = row.user_id
@@ -418,6 +437,15 @@ const successUpload = async (response) => {
   } else {
     ElMessage.error(response.message)
   }
+}
+
+// 分组管理弹窗（抽屉）相关
+const drawer = ref(false)
+
+const handleDrawerClose = () => {
+  // 关闭抽屉时，重新获取分组数据
+  initTable()
+  drawer.value = false
 }
 </script>
 <style scoped>

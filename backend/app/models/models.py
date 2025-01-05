@@ -63,6 +63,8 @@ class ChatSet(Model):
         "models.APPSet", related_name="chatsets", on_delete=fields.CASCADE
     )
     name = fields.CharField(max_length=255, default="new chat")
+    # 用户id, 用于区分不同用户的聊天记录（逻辑外键，既可以存储NormalUser.id 又可以存储AdminUser.id）
+    user_id = fields.CharField(max_length=255, null=True)
     is_test = fields.BooleanField(default=False)
     created_at = fields.DatetimeField(auto_now_add=True)
     updated_at = fields.DatetimeField(auto_now=True)
@@ -136,12 +138,12 @@ class NormalUserGroup(Model):  # 中间表，记录用户与用户组的关系
     created_at = fields.DatetimeField(auto_now_add=True)
 
 
-class UserAPPSet(Model):  # 中间表，记录用户与APP的关系
+class GroupAPPSet(Model):  # 中间表，记录用户组与APP的关系
     id = fields.UUIDField(pk=True)
-    user = fields.ForeignKeyField(
-        "models.NormalUser", related_name="user_apps", on_delete=fields.CASCADE
+    group = fields.ForeignKeyField(
+        "models.UserGroup", related_name="group_apps", on_delete=fields.CASCADE
     )
     app = fields.ForeignKeyField(
-        "models.APPSet", related_name="app_users", on_delete=fields.CASCADE
+        "models.APPSet", related_name="app_groups", on_delete=fields.CASCADE
     )
     created_at = fields.DatetimeField(auto_now_add=True)

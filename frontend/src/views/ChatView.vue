@@ -84,12 +84,22 @@
             </div>
           </el-tooltip>
         </div>
-        <el-tooltip content="回到管理界面" placement="bottom"
+        <el-tooltip
+          content="回到管理界面"
+          placement="bottom"
+          v-if="role === 'admin'"
           ><img
             src="/avatar.png"
             alt=""
             class="avater-img"
             @click="goBackAdminRouter"
+        /></el-tooltip>
+        <el-tooltip content="用户登录界面" placement="bottom" v-else
+          ><img
+            src="/avatar.png"
+            alt=""
+            class="avater-img"
+            @click="goBackUserRouter"
         /></el-tooltip>
       </div>
       <div class="chat-container-content">
@@ -112,9 +122,15 @@ import { updateNewChatTitleAxios } from '@/api/chat.js'
 import { useSettingStore } from '@/stores/setting.js'
 import ChatSetBox from '@/components/ChatSetBox.vue'
 import ChatComponent from '@/components/ChatComponent.vue'
-import { getAppsetAxios } from '@/api/appset.js'
-import { checkIsLogin } from '@/api/admin_user.js'
-import { ElMessage, ElMessageBox } from 'element-plus'
+// import { getAppsetAxios } from '@/api/appset.js'
+// import { checkIsLogin } from '@/api/admin_user.js'
+// import { ElMessage, ElMessageBox } from 'element-plus'
+import { useTokenStore } from '@/stores/token.js'
+
+// 判断是否登录
+const tokenStore = useTokenStore()
+// const isLogin = ref(tokenStore.access_token ? true : false)
+const role = tokenStore.role
 
 // 跳转路由
 const router = useRouter()
@@ -122,35 +138,6 @@ const router = useRouter()
 const appID = useRoute().params.appID
 // 侧边栏显示与隐藏逻辑
 const settingStore = useSettingStore() // 持久化存储 侧边栏状态
-
-const checkAppPrivacyStatus = async () => {
-  const response = await getAppsetAxios(appID)
-  console.log(response.data.privacy)
-  // 如果是私有的，需要判断是否登录
-  if (response.data.privacy === '私有') {
-    // 判断是否登录
-    const isLogin = await checkIsLogin()
-    if (isLogin) return
-    // 未登录，弹出提示登录框
-    // 关闭侧边栏显示
-    settingStore.isSidebarVisible = false
-    // 弹出提示登录框
-    ElMessageBox.confirm('你访问的应用已被设置为私有访问', {
-      confirmButtonText: '登录',
-      cancelButtonText: '取消访问'
-    })
-      .then(async () => {
-        // 跳转到登录界面
-        router.push({ name: 'account' })
-        ElMessage.info('请登录后再访问')
-      })
-      .catch(() => {
-        // 跳转到403页面
-        router.push({ name: 'forbidden' })
-      })
-  }
-}
-checkAppPrivacyStatus()
 
 const chatsets = ref('')
 const fetchChatSetsData = async () => {
@@ -247,8 +234,14 @@ const newChat = () => {
 
 const goBackAdminRouter = () => {
   router.push({
-    name: 'id-app-configuration',
+    name: 'app-configuration',
     params: { appID: appID }
+  })
+}
+
+const goBackUserRouter = () => {
+  router.push({
+    name: 'login'
   })
 }
 </script>

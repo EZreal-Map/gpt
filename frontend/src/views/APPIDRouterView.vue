@@ -32,7 +32,7 @@
 <script setup>
 import { useRoute, useRouter } from 'vue-router'
 import IconTextButton from '@/components/IconTextButton.vue'
-import { Document, Link } from '@element-plus/icons-vue'
+import { Document, Link, UserFilled } from '@element-plus/icons-vue'
 import { computed } from 'vue'
 
 // 使用 useRoute 获取路由信息
@@ -49,19 +49,19 @@ const backToDataBaseView = () => {
 const menuItems = [
   {
     text: '简易配置',
-    route: { name: 'id-app-configuration', params: { appID } },
+    route: { name: 'app-configuration', params: { appID } },
     icon: Document
+  },
+  {
+    text: '用户管理',
+    route: { name: 'app-user-management', params: { appID } },
+    icon: UserFilled
   },
   {
     text: '发布链接',
     route: { name: 'chat', params: { appID } },
     icon: Link
   }
-  // {
-  //   text: '发布应用',
-  //   route: { name: 'id-app-publish', params: { appID } },
-  //   icon: Link
-  // }
 ]
 
 // const currentRoute = ref(route.path)

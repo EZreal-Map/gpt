@@ -24,7 +24,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import IconTextButton from '@/components/IconTextButton.vue'
-import { Promotion, Coin, UserFilled } from '@element-plus/icons-vue'
+import { Promotion, Coin, Avatar } from '@element-plus/icons-vue'
 import { useRoute, useRouter } from 'vue-router'
 
 const route = useRoute()
@@ -40,7 +40,7 @@ const navigateToAccount = () => {
 const menuItems = [
   { text: '应用', route: { name: 'app' }, icon: Promotion },
   { text: '知识库', route: { name: 'database' }, icon: Coin },
-  { text: '用户', route: { name: 'account' }, icon: UserFilled }
+  { text: '用户', route: { name: 'account' }, icon: Avatar }
 ]
 
 const isSelected = (itemRoute) => {

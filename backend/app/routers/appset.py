@@ -58,7 +58,7 @@ class APPSetPydantic(BaseModel):
 
 
 # 定义 Pydantic 模型用于响应体验证
-class APPSetResponse(BaseModel):
+class APPSetResponseModel(BaseModel):
     id: UUID
     name: str
     description: Optional[str]
@@ -67,7 +67,7 @@ class APPSetResponse(BaseModel):
 
 
 # 获取所有 APPSet 的路由
-@appset_router.get("/", response_model=List[APPSetResponse], tags=["appset"])
+@appset_router.get("/", response_model=List[APPSetResponseModel], tags=["appset"])
 async def get_all_datasets():
     """
     获取所有APP应用数据集
@@ -80,7 +80,7 @@ async def get_all_datasets():
 
 
 # 创建新的 APPSet 的路由
-@appset_router.post("/", response_model=APPSetResponse, tags=["appset"])
+@appset_router.post("/", response_model=APPSetResponseModel, tags=["appset"])
 async def create_dataset(create_appset: APPSetPydantic):
     """
     创建一个新的APP应用数据集
@@ -100,6 +100,21 @@ async def create_dataset(create_appset: APPSetPydantic):
     await ChatSet.create(app_id=new_appset, is_test=True)
 
     return new_appset
+
+
+# 获取指定{appset_id} APPSet 的路由
+@appset_router.get("/{appset_id}", tags=["appset"])
+async def get_dataset(appset_id: str):
+    """
+    获取一个指定的APPSet
+    :param appset_id: 数据集ID
+    :return: 查询后的数据库记录
+    """
+    appset = await APPSet.get_or_none(id=appset_id)
+    if not appset:
+        raise HTTPException(status_code=404, detail="Appset not found")
+    appset.created_at = appset.created_at.strftime("%Y-%m-%d %H:%M:%S")
+    return appset
 
 
 # 更新指定 APPSet 的路由
@@ -147,10 +162,10 @@ async def delete_dataset(appset_id: UUID):
         if fileset_folder.exists() and fileset_folder.is_dir():
             print(f"删除文件夹及其内容: {fileset_folder}")
             shutil.rmtree(fileset_folder)  # 删除文件夹及其所有内容
-        
+
         # 删除与 FileSet 向量数据库
         load_vectorstore(fileset.id).delete_collection()
-    
+
     # 删除数据库记录
     await appset.delete()
     return {"appset": appset}

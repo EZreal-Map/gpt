@@ -6,7 +6,6 @@ from config import settings
 from routers.retrieval import retrieval_router
 from routers.dataset import dataset_router
 from routers.appset import appset_router
-from routers.appset_no_auth import appset_router_no_auth
 from routers.chatset import chatset_router
 from routers.chat_history import chat_history_router
 from routers.admin_user import admin_user_router
@@ -14,7 +13,10 @@ from routers.fileset import fileset_router, clear_unmatched_filesets
 from routers.audio import audio_router
 from routers.normal_user import normal_user_router
 from fastapi.middleware.cors import CORSMiddleware
-from utils.authenticate import get_current_admin_user_dependence
+from utils.authenticate import (
+    get_current_admin_user_dependence,
+    get_current_normal_user_dependence,
+)
 from apscheduler.schedulers.asyncio import (
     AsyncIOScheduler,
 )  # 定时任务, 用于清除临时文件
@@ -63,22 +65,34 @@ app.include_router(
 app.include_router(
     appset_router,
     prefix="/appset",
-    dependencies=[Depends(get_current_admin_user_dependence)],
+    dependencies=[Depends(get_current_normal_user_dependence)],
+)
+
+# 聊天记录 有关路由
+app.include_router(
+    chatset_router,
+    prefix="/chatset",
+    dependencies=[Depends(get_current_normal_user_dependence)],
 )
 app.include_router(
-    appset_router_no_auth, prefix="/appset"
-)  # 将此路由包含在主应用中，不包含全局依赖项
-# 聊天记录 有关路由
-app.include_router(chatset_router, prefix="/chatset")
-app.include_router(chat_history_router, prefix="/chat_history")
-# admin用户 有关路由
+    chat_history_router,
+    prefix="/chat_history",
+    dependencies=[Depends(get_current_normal_user_dependence)],
+)
+# admin用户 有关路由（这个路由特殊，不能添加身份验证）
 app.include_router(admin_user_router)
 # fileset存储 有关路由
-app.include_router(fileset_router, prefix="/fileset")
-# 语音识别，语音生成 有关路由
+app.include_router(
+    fileset_router,
+    prefix="/fileset",
+    dependencies=[Depends(get_current_normal_user_dependence)],
+)
+# 语音识别，语音生成 有关路由（因为audio合成与识别都用到WebSocket，而jwt token技术是基于HTTP，所以不能添加身份验证）
 app.include_router(audio_router)
 # 普通用户 有关路由
-app.include_router(normal_user_router)
+app.include_router(
+    normal_user_router, dependencies=[Depends(get_current_normal_user_dependence)]
+)
 
 
 # 增加清除临时文件定时任务

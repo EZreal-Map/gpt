@@ -4,7 +4,7 @@ import request from '@/utils/request'
 //  Account.vue
 // 用户登录
 export const postFormLoginAxios = ({ username, password }) => {
-  return request.post('/login/admin', qs.stringify({ username, password }), {
+  return request.post('/login', qs.stringify({ username, password }), {
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded'
     }
@@ -12,9 +12,23 @@ export const postFormLoginAxios = ({ username, password }) => {
 }
 
 // 判断用户是否登录，比直接判断是否保存userStore.username为空要更加准确，因为后端可以多判断token是否过期
-export const checkIsLogin = async () => {
+export const checkIsAdminLogin = async () => {
   // 响应拦截器自动添加
   // headers.Authorization = `${tokenStore.token_type} ${tokenStore.access_token}`
-  const response = await request.get('/login/status')
+  const response = await request.get('/login/is_admin_login')
+  return response.data.is_login
+}
+
+export const checkIsNormalLogin = async () => {
+  // 响应拦截器自动添加
+  // headers.Authorization = `${tokenStore.token_type} ${tokenStore.access_token}`
+  const response = await request.get('/login/is_admin_login')
+  return response.data.is_login
+}
+
+export const isNormalUserAccessApp = async (appID) => {
+  // 响应拦截器自动添加
+  // headers.Authorization = `${tokenStore.token_type} ${tokenStore.access_token}`
+  const response = await request.get(`/login/is_normal_user_access_app/`, appID)
   return response.data.is_login
 }

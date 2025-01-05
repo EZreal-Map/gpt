@@ -441,6 +441,8 @@ const cleanChatHistory = async () => {
   display: flex;
   height: calc(100vh - 140px);
   align-items: stretch;
+  background-color: #fefefe;
+  border-radius: 8px;
 }
 
 .left-block {

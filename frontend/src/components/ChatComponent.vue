@@ -249,7 +249,6 @@ defineExpose({
     // 重新生成文件ID
     fileset_id.value = crypto.randomUUID()
     console.log(fileset_id.value)
-    // TODO: 清空文件列表
     fileList.value = []
   }
 })
@@ -608,9 +607,13 @@ const stopRecording = () => {
   ElMessage.success('结束语音识别')
 }
 
+let lastTriggerTime = 0 // 节流计时
 // 监听键盘按键
 const handleKeydown = (event) => {
-  // 监听键盘按键 F 来启动和停止录音
+  const now = Date.now()
+  if (now - lastTriggerTime < 500) return // 如果时间间隔小于 500 毫秒，则忽略事件
+  lastTriggerTime = now
+
   if (event.key === 'f' || event.key === 'F') {
     if (
       event.target.tagName !== 'INPUT' &&
@@ -623,11 +626,12 @@ const handleKeydown = (event) => {
       }
     }
   }
-  // 监听键盘按键 D 来显示和隐藏文件上传区域
   if (event.key === 'd' || event.key === 'D') {
     uploadShow.value = !uploadShow.value
   }
 }
+
+window.addEventListener('keydown', handleKeydown)
 
 // 在组件挂载时添加事件监听
 window.addEventListener('keydown', handleKeydown)
