@@ -232,7 +232,7 @@
 </template>
 <script setup>
 import { ref } from 'vue'
-import GroupsManagementDrawer from '@/components/GroupsmanagementDrawer.vue'
+import GroupsManagementDrawer from '@/components/GroupsManagementDrawer.vue'
 import {
   getNormalUsers,
   createNormalUser,

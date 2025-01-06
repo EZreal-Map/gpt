@@ -34,7 +34,13 @@
           <span>{{ result.metadata.chunk_word_count }}</span>
         </el-tooltip>
       </div>
-      <span class="edit-icon" @click="editBox(result)">编辑</span>
+      <!-- 如果不是admin用户，没有编辑按钮 -->
+      <span
+        v-if="tokenStore.role === 'admin'"
+        class="edit-icon"
+        @click="editBox(result)"
+        >编辑</span
+      >
     </div>
   </div>
 </template>
@@ -42,6 +48,9 @@
 <script setup>
 // import { ref } from 'vue'
 import { getDownloadDocumentAxios } from '@/api/dataset.js'
+import { useTokenStore } from '@/stores/token.js'
+
+const tokenStore = useTokenStore()
 
 // 从父组件接收的props
 defineProps({

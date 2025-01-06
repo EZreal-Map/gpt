@@ -92,6 +92,16 @@ const enableEditingName = () => {
   })
 }
 
+// 使用 watch 监听 props.name 的变化
+// 解决第一次新建聊天对话完成的时候，editableName 不会随着 props.name 变化的问题
+// 打开input修改发现初始editableName 还是 "new chat" ,而不是新的取名title name
+watch(
+  () => props.name,
+  (newValue) => {
+    editableName.value = newValue
+  }
+)
+
 const saveName = async () => {
   isEditingName.value = false
   if (editableName.value) {
