@@ -63,8 +63,13 @@
         <el-table-column property="user_id" label="学号" width="200" sortable />
         <el-table-column property="name" label="姓名" width="200" sortable />
         <el-table-column property="groups" label="分组" sortable />
-        <el-table-column property="updated_at" label="更新时间" sortable />
-        <el-table-column fixed="right" label="操作" width="100">
+        <el-table-column
+          property="total_chat_count"
+          label="提问次数"
+          sortable
+        />
+        <el-table-column property="updated_at" label="最后更新时间" sortable />
+        <el-table-column fixed="right" label="操作" width="140">
           <template #default="scope">
             <el-button
               link
@@ -80,6 +85,13 @@
               size="small"
               @click="updateNormalUserHandle(scope.row)"
               >修改</el-button
+            >
+            <el-button
+              link
+              type="primary"
+              size="small"
+              @click="analyzeUserQueryHandle(scope.row)"
+              >分析</el-button
             >
           </template>
         </el-table-column>
@@ -219,7 +231,7 @@
     </template>
   </el-dialog>
 
-  <!-- 分组弹窗(抽屉) -->
+  <!-- 分组弹窗(抽屉右) -->
   <div v-if="drawer">
     <el-drawer
       v-model="drawer"
@@ -229,9 +241,27 @@
       <GroupsManagementDrawer />
     </el-drawer>
   </div>
+  <!-- 问题分析弹窗(抽屉左) -->
+  <el-drawer
+    v-model="analyzeDraw"
+    title="用户分析"
+    direction="ltr"
+    :before-close="handleAnalyzeDrawerClose"
+  >
+    <div class="analyze-drawer">
+      <MdPreview
+        editorId="preview-only"
+        :modelValue="analyzeAnswer"
+        previewTheme="github"
+      />
+    </div>
+  </el-drawer>
 </template>
 <script setup>
 import { ref } from 'vue'
+import { fetchEventSource } from '@microsoft/fetch-event-source'
+import { MdPreview } from 'md-editor-v3'
+import { baseURL } from '@/utils/request.js'
 import GroupsManagementDrawer from '@/components/GroupsManagementDrawer.vue'
 import {
   getNormalUsers,
@@ -251,7 +281,7 @@ const pageSize = ref(15)
 const total_page_num = ref(1)
 
 const changeHandle = (newCurrentPage, newPageSize) => {
-  console.log(newCurrentPage, newPageSize)
+  // console.log(newCurrentPage, newPageSize)
   currentPage.value = newCurrentPage
   pageSize.value = newPageSize
   initTable()
@@ -411,10 +441,78 @@ const updateNormalUserAxios = async () => {
   })
 }
 
+// 问题分析的回答文本
+const analyzeAnswer = ref('')
+// 用于控制连接的终止
+const ctrl = ref(null)
+// 问题分析的连接地址
+const streamUrl = baseURL + '/chat/user_analyze'
+// 生成（分析）用户提问学习报告
+const analyzeUserQueryHandle = (row) => {
+  // 打开抽屉
+  analyzeDraw.value = true
+  // 在这里重新创建 AbortController 实例
+  ctrl.value = new AbortController()
+
+  fetchEventSource(streamUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `${tokenStore.token_type} ${tokenStore.access_token}`
+    },
+    body: JSON.stringify({
+      student_id: row.user_id
+    }),
+    signal: ctrl.value.signal,
+    openWhenHidden: true, // 在调用失败时禁止重复调用
+    onmessage(event) {
+      // 接收到消息回调 （多次）
+      // console.log(event)
+      if (!event.event) {
+        // 跳过空消息，无效消息，避免下面继续解析报错
+        return
+      }
+      const data = JSON.parse(event.data)
+      // console.log(data)
+      if (event.event === 'message') {
+        analyzeAnswer.value += data.content
+      }
+    },
+    onclose() {
+      // 正常连接关闭回调
+      // messages.value[messages.value.length - 1].isConnecting = false
+      console.log('Connection closed')
+    },
+    onerror(err) {
+      //连接出现异常回调
+      // 必须抛出错误才会停止
+      ElMessage.error('回答出现问题，请刷新页面重试')
+      // if (messages.value[messages.value.length - 1]?.isConnecting) {
+      //   messages.value[messages.value.length - 1].isConnecting = false
+      // }
+      ctrl.value.abort() // 终止连接
+      console.error('Connection error:', err)
+      throw err
+    }
+  })
+}
+
+const analyzeDraw = ref(false)
+const handleAnalyzeDrawerClose = () => {
+  // 关闭抽屉时，终止连接
+  if (ctrl.value) {
+    ctrl.value.abort()
+  }
+  // 清空回答内容
+  analyzeAnswer.value = ''
+  // 关闭抽屉
+  analyzeDraw.value = false
+}
+
 // 批量添加用户
 // 上传文件前的处理
 const beforeUpload = (file) => {
-  console.log(file)
+  // console.log(file)
   const allowedTypes = [
     'text/csv',
     'application/vnd.ms-excel',
@@ -430,7 +528,7 @@ const beforeUpload = (file) => {
 
 // 上传文件成功的处理
 const successUpload = async (response) => {
-  console.log(response)
+  // console.log(response)
   if (response.code === 0) {
     ElMessage.success(response.message)
     initTable()
@@ -486,6 +584,10 @@ const handleDrawerClose = () => {
 }
 
 .el-dialog {
+  text-align: left;
+}
+
+.analyze-drawer {
   text-align: left;
 }
 </style>

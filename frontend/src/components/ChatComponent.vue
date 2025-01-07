@@ -387,13 +387,13 @@ const sendMessage = (query) => {
     onerror(err) {
       //连接出现异常回调
       // 必须抛出错误才会停止
-      ElMessage.error('回答出现问题，请重试,error:' + err)
+      ElMessage.error('回答出现问题，请刷新页面重试')
       if (messages.value[messages.value.length - 1]?.isConnecting) {
         messages.value[messages.value.length - 1].isConnecting = false
       }
       ctrl.value.abort() // 终止连接
       console.error('Connection error:', err)
-      throw err
+      // throw err
     }
   })
 }

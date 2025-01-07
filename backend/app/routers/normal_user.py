@@ -8,6 +8,7 @@ from models.models import (
     APPSet,
     GroupAPPSet,
     ChatSet,
+    ChatHistory,
 )
 from routers.chatset import delete_chatset_by_chatset
 from utils.authenticate import hash_password, get_current_normal_user_dependence
@@ -43,6 +44,7 @@ class NormalUserCreate(BaseModel):
 class NormalUserOutput(BaseModel):
     user_id: str
     name: str
+    total_chat_count: int = 0
     updated_at: str  # 这里定义的还是字符串类型，用于存储格式化后的时间
     groups: list[str]
 
@@ -272,14 +274,22 @@ async def get_normal_users(
     query = query.offset(page_start).limit(page_size)
     # 执行查询
     users = await query
-    # 拼接 NormalUser 和 UserGroup 的信息
+    # 拼接 NormalUser 和 UserGroup 的信息,还有ChatHistory的信息
     result = []
     for user in users:
+        # 查询用户的问答次数
+        # 获取所有与用户相关的 ChatSet 的 ID 列表
+        chatset_ids = await ChatSet.filter(user_id=user.id).values_list("id", flat=True)
+        # 使用 in 查询所有对应的 ChatHistory 记录数
+        total_chat_count = await ChatHistory.filter(chat_id_id__in=chatset_ids).count()
+        # 获取用户所属的组
         groups = [user_group.group.name for user_group in user.user_groups]
+        # 将结果添加到 result 列表中
         result.append(
             NormalUserOutput(
                 user_id=user.user_id,
                 name=user.name,
+                total_chat_count=total_chat_count,
                 updated_at=user.updated_at,
                 groups=groups,
             )

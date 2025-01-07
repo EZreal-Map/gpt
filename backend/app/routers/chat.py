@@ -1,5 +1,5 @@
 from langchain_openai import ChatOpenAI
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, Request, HTTPException, Body
 from itertools import count
 from sse_starlette import EventSourceResponse
 from pydantic import BaseModel, Field
@@ -7,8 +7,8 @@ import json
 from utils.retrieval import retrieval_similarity_search
 from typing import Dict, List
 from langchain_core.messages import HumanMessage, AIMessage
-from models.models import APPSet, ChatSet, ChatHistory, FileSet
-from utils.templates import retrieval_template, title_template
+from models.models import APPSet, ChatSet, ChatHistory, FileSet, NormalUser
+from utils.templates import retrieval_template, title_template, user_analyze_template
 from routers.dataset import PrivacyEnum
 from tortoise.exceptions import DoesNotExist
 
@@ -117,6 +117,7 @@ class QueryModel(BaseModel):
 
 
 # 创建一个FastAPI路由来处理流式响应
+# 用户发送问题，返回答案路由 /chat
 @chat_router.post("", tags=["chat"])
 async def retrieval_chat(request: Request, query_body: QueryModel):
     # 通过appset_id 查询 appset 参数 / datasets_ids 参数
@@ -291,3 +292,57 @@ async def retrieval_chat(request: Request, query_body: QueryModel):
     print("query_string:", query_string)
 
     return {"query:": query_string}
+
+
+class UserAnalyzeModel(BaseModel):
+    student_id: str = Field(..., description="学号")
+
+
+# 处理用户分析路由
+@chat_router.post("/user_analyze", tags=["chat"])
+async def user_analyze_chat(request: Request, user: UserAnalyzeModel):
+    # 先通过user_id 查询 NormalUser的id
+    normal_user = await NormalUser.get_or_none(user_id=user.student_id)
+    # 通过user_id 查询 chatset 再查询 chat_history
+    # 获取所有与用户相关的 ChatSet 的 ID 列表
+    chatset_ids = await ChatSet.filter(user_id=normal_user.id).values_list(
+        "id", flat=True
+    )
+
+    # 使用 in 查询所有对应的 ChatHistory 记录数
+    questions = (
+        await ChatHistory.filter(chat_id_id__in=chatset_ids)
+        .order_by("-updated_at")
+        .limit(50)
+        .values_list("question", flat=True)
+    )
+
+    template = user_analyze_template
+    query = HumanMessage(
+        content=template.format(
+            student_name=normal_user.name,
+            student_id=user.student_id,
+            questions=questions,
+        )
+    )
+    return EventSourceResponse(chat_analyze(request, query=query))
+
+
+async def chat_analyze(
+    request: Request, query: HumanMessage, model_params={"model": "gpt-4o"}
+):
+    # 使用 itertools 的 count 函数来生成自增的 id
+    id_counter = count()
+    # 模型：创建 ChatOpenAI 实例
+    model = ChatOpenAI(**model_params)
+    # 生成器函数，用于流式发送数据
+    async for chunk in model.astream(query.content):
+        # print(chunk)
+        if await request.is_disconnected():
+            print("连接已中断")
+            break
+        id = next(id_counter)  # 获取下一个自增的 id
+        data = json.dumps(
+            {"content": chunk.content, "id": chunk.id}, ensure_ascii=False
+        )
+        yield {"data": data, "event": "message", "id": id}
