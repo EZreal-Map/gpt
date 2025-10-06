@@ -1,7 +1,9 @@
 from langchain_openai import ChatOpenAI
 from fastapi import APIRouter, Request, HTTPException, Body
 from itertools import count
+
 from sse_starlette import EventSourceResponse
+import openai
 from pydantic import BaseModel, Field
 import json
 from utils.retrieval import retrieval_similarity_search
@@ -94,16 +96,39 @@ async def chat_streamer(
             "id": -2,
         }
     # 生成器函数，用于流式发送数据
-    async for chunk in model.astream(query):
-        print(chunk)
-        if await request.is_disconnected():
-            print("连接已中断")
-            break
-        id = next(id_counter)  # 获取下一个自增的 id
-        data = json.dumps(
-            {"content": chunk.content, "id": chunk.id}, ensure_ascii=False
+    try:
+        async for chunk in model.astream(query):
+            print(chunk)
+            if await request.is_disconnected():
+                print("连接已中断")
+                break
+            id = next(id_counter)  # 获取下一个自增的 id
+            data = json.dumps(
+                {"content": chunk.content, "id": chunk.id}, ensure_ascii=False
+            )
+            yield {"data": data, "event": "message", "id": id}
+    except openai.RateLimitError as e:
+        # 报告限流并优雅结束流
+        err = json.dumps(
+            {"error": "OpenAI rate limit exceeded", "detail": str(e)},
+            ensure_ascii=False,
         )
-        yield {"data": data, "event": "message", "id": id}
+        print("Rate limit error:", err)
+        yield {"data": err, "event": "error", "id": next(id_counter)}
+        return
+    except Exception as e:
+        # 捕获其他异常，返回 error 事件后结束
+        try:
+            err = json.dumps(
+                {"error": "internal_error", "detail": str(e)}, ensure_ascii=False
+            )
+        except Exception:
+            err = json.dumps(
+                {"error": "internal_error", "detail": "unknown"}, ensure_ascii=False
+            )
+        print("Internal error:", err)
+        yield {"data": err, "event": "error", "id": next(id_counter)}
+        return
 
 
 class QueryModel(BaseModel):
@@ -213,8 +238,12 @@ async def retrieval_chat(qa_body: QAModel):
     query = template.format(question=qa_body.question, answer=qa_body.answer)
 
     model = ChatOpenAI()
-
-    title_name = model.invoke(query).content
+    try:
+        title_name = model.invoke(query).content
+    except openai.RateLimitError as e:
+        raise HTTPException(status_code=503, detail="OpenAI rate limit exceeded")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"model invoke error: {e}")
     # 查询指定的 ChatSet
     chatset = await ChatSet.get_or_none(id=qa_body.chat_id)
     if not chatset:

@@ -13,9 +13,7 @@ export const getWebSocketURL = (path) => {
     wsURL = `${wsProtocol}${wsDomain}${path}`
   } else {
     // 如果 baseURL 是相对路径，拼接成完整的 WebSocket URL
-    const wsProtocol = window.location.protocol.startsWith('https')
-      ? 'wss://'
-      : 'ws://'
+    const wsProtocol = window.location.protocol.startsWith('https') ? 'wss://' : 'ws://'
     wsURL = `${wsProtocol}${window.location.host}${baseURL}${path}`
   }
 

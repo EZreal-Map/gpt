@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from fastapi import FastAPI, Depends
 from routers.chat import chat_router
-from tortoise.contrib.fastapi import register_tortoise
+from tortoise import Tortoise
 from config import settings
 from routers.retrieval import retrieval_router
 from routers.dataset import dataset_router
@@ -39,12 +39,6 @@ app.add_middleware(
     allow_headers=settings.CORS_ALLOW_HEADERS,
 )
 TORTOISE_ORM = settings.TORTOISE_ORM  # 数据库配置 aerich init -t main.TORTOISE_ORM
-register_tortoise(
-    app,
-    config=TORTOISE_ORM,
-    # generate_schemas=True,  # 如果数据库为空，则自动生成对应表单，生产环境不要开
-    # add_exception_handlers=True,  # 生产环境不要开，会泄露调试信息
-)
 
 scheduler = AsyncIOScheduler()  # 创建定时任务
 
@@ -98,10 +92,24 @@ app.include_router(
 # 增加清除临时文件定时任务
 @app.on_event("startup")
 async def startup_event():
+    # 初始化 Tortoise ORM（替代 register_tortoise）
+    try:
+        await Tortoise.init(config=TORTOISE_ORM)
+    except Exception as e:
+        print(f"Tortoise init error: {e}")
+
     scheduler.add_job(clear_unmatched_filesets, "cron", hour=4)  # 每天凌晨4点运行
     scheduler.start()
     print("Scheduler：定时清除临时FileSet已启动")
     await clear_unmatched_filesets()
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    try:
+        await Tortoise.close_connections()
+    except Exception:
+        pass
 
 
 if __name__ == "__main__":
