@@ -7,6 +7,7 @@ import openai
 from pydantic import BaseModel, Field
 import json
 from utils.retrieval import retrieval_similarity_search
+from utils.authenticate import get_current_admin_user_dependence
 from typing import Dict, List
 from langchain_core.messages import HumanMessage, AIMessage
 from models.models import APPSet, ChatSet, ChatHistory, FileSet, NormalUser
@@ -154,9 +155,18 @@ async def retrieval_chat(request: Request, query_body: QueryModel):
         raise HTTPException(status_code=404, detail="未找到指定的 APPSet")
 
     if appset.privacy == PrivacyEnum.PRIVATE.value:
-        # is_login = await is_user_logged_in(request)
-        # if not is_login:
-        raise HTTPException(status_code=403, detail=f"禁止访问send_message")
+        # 私有 app：允许 admin 用户访问
+        try:
+            auth_header = request.headers.get("Authorization")
+            if auth_header:
+                token = auth_header.split(" ")[1]
+                # 如果是 admin，则允许访问
+                await get_current_admin_user_dependence(token=token)
+            else:
+                raise HTTPException(status_code=403, detail="禁止访问send_message")
+        except HTTPException:
+            # 非 admin 或认证失败，禁止访问
+            raise HTTPException(status_code=403, detail=f"禁止访问send_message")
     # 获取 appset 中所有公开 知识库的 id
     dataset_ids = [
         dataset.id
