@@ -32,7 +32,7 @@ services:
       - gpt_network # 连接到自定义网络
 
   chroma:
-    image: chromadb/chroma # 使用指定的 chromadb 镜像
+    image: chromadb/chroma:0.4.24 # 使用指定的 chromadb 镜像(旧版本是v1，新版本>0.5就是v2接口)
     container_name: gpt-chroma # 设置容器名称
     ports:
       - 9012:8000 # 将容器的8000端口映射到宿主机的9012端口
@@ -51,7 +51,7 @@ services:
     ports:
       - 9013:7979 # 将容器的7979端口映射到宿主机的9013端口
     volumes:
-      - ./docker-volumes/statiD:/home/backend/app/static # 映射 Chroma 数据目录
+      - ./docker-volumes/static:/home/backend/app/static # 映射 Chroma 数据目录
     env_file:
       - .env # 读取当前目录下的 .env 文件, 设置环境变量, 例如 OPENAI_API_KEY=sk-3234...
     depends_on:
